@@ -107,16 +107,6 @@ func SearchSimilarNames(c *gin.Context) {
 					}
 				}
 			}
-
-			if len(similarNames) == 0 {
-				similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: smlt})
-				varWords := strings.Split(n.NameVariations, "|")
-				for _, vw := range varWords {
-					if vw != "" {
-						similarNames = append(similarNames, models.NameVar{Name: vw, Levenshtein: smlt})
-					}
-				}
-			}
 		}
 	}
 
@@ -151,11 +141,33 @@ func orderByLevenshtein(arr []models.NameVar) []string {
 
 	var retArry []string
 	for _, lv := range sortedArr {
-		if lv.Levenshtein != float32(0) {
-			retArry = append(retArry, lv.Name)
-		}
-
+		retArry = append(retArry, lv.Name)
 	}
 
-	return retArry
+	return removeDuplicates(retArry)
+
+}
+
+//removeDuplicates remove duplicates of []string
+func removeDuplicates(arr []string) []string {
+	var cleanArr []string
+
+	for _, a := range arr {
+		if !contains(cleanArr, a) {
+			cleanArr = append(cleanArr, a)
+		}
+	}
+
+	return cleanArr
+}
+
+//contains verifies if []string already has a specific string
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }
