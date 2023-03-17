@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const levenshtein = 0.85
+const levenshtein = 0.8
 
 //CreateName create new name on database of type NameType
 func CreateName(c *gin.Context) {
@@ -151,7 +151,10 @@ func orderByLevenshtein(arr []models.NameVar) []string {
 
 	var retArry []string
 	for _, lv := range sortedArr {
-		retArry = append(retArry, lv.Name)
+		if lv.Levenshtein != float32(0) {
+			retArry = append(retArry, lv.Name)
+		}
+
 	}
 
 	return retArry
