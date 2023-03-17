@@ -2,18 +2,63 @@ package controllers
 
 import (
 	"github.com/Darklabel91/API_Names/database"
+	"github.com/Darklabel91/API_Names/metaphone"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"sort"
+	"strings"
 )
 
-func GetAllNames(c *gin.Context) {
+func SearchSimilarNames(c *gin.Context) {
 	var names []models.NameType
-	database.Db.Find(&names)
 
-	c.JSON(200, names)
+	//Name to be searched
+	name := c.Params.ByName("name")
+	mtf := metaphone.Pack(name)
+
+	database.Db.Where("metaphone = ?", metaphone.Pack(name)).Find(&names)
+
+	if len(names) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"Not found": "metaphone not found", "metaphone": mtf})
+		return
+	}
+
+	var similarNames []string
+	for _, n := range names {
+		if metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name)) >= 0.8 {
+			similarNames = append(similarNames, n.Name)
+			varWords := strings.Split(n.NameVariations, "|")
+			for _, vw := range varWords {
+				if vw != "" {
+					similarNames = append(similarNames, strings.TrimSpace(vw))
+				}
+			}
+		}
+
+		if len(similarNames) == 0 {
+			similarNames = append(similarNames, n.Name)
+			varWords := strings.Split(n.NameVariations, "|")
+			for _, vw := range varWords {
+				if vw != "" {
+					similarNames = append(similarNames, strings.TrimSpace(vw))
+				}
+			}
+		}
+
+		sort.Strings(similarNames)
+
+	}
+
+	c.JSON(200, gin.H{
+		"Name":            strings.ToUpper(name),
+		"metaphone":       mtf,
+		"name_variations": similarNames,
+	})
+
 }
 
+//CreateName create new name on database of type NameType
 func CreateName(c *gin.Context) {
 	var name models.NameType
 	if err := c.ShouldBindJSON(&name); err != nil {
@@ -25,6 +70,7 @@ func CreateName(c *gin.Context) {
 	c.JSON(http.StatusOK, name)
 }
 
+//SearchNameByID read name by id
 func SearchNameByID(c *gin.Context) {
 	var name models.NameType
 
@@ -39,19 +85,7 @@ func SearchNameByID(c *gin.Context) {
 	c.JSON(http.StatusOK, name)
 }
 
-func SearchNameByMetaphone(c *gin.Context) {
-	var name models.NameType
-	metaphone := c.Params.ByName("mtf")
-
-	database.Db.Where(&models.NameType{Metaphone: metaphone}).First(&name)
-	if name.ID == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"Not found": "name id not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, name)
-}
-
+//DeleteName delete name off database by id
 func DeleteName(c *gin.Context) {
 	var name models.NameType
 	id := c.Params.ByName("id")
@@ -65,6 +99,7 @@ func DeleteName(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": "name data deleted"})
 }
 
+//UpdateName update name by id
 func UpdateName(c *gin.Context) {
 	var name models.NameType
 	id := c.Param("id")

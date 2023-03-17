@@ -2,12 +2,11 @@ package models
 
 import "gorm.io/gorm"
 
-//var NameCollection []NameType
-
+//NameType main struct
 type NameType struct {
 	gorm.Model
-	Name           string   `json:"Name,omitempty"`
-	Classification string   `json:"Classification,omitempty"`
-	Metaphone      string   `json:"Metaphone,omitempty"`
-	NameVariations []string `gorm:"type:longText" json:"NameVariations,omitempty"`
+	Name           string `json:"Name,omitempty"`
+	Classification string `json:"Classification,omitempty"`
+	Metaphone      string `json:"Metaphone,omitempty"`
+	NameVariations string `json:"NameVariations,omitempty"`
 }

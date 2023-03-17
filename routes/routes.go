@@ -9,13 +9,11 @@ const door = ":8080"
 
 func HandleRequests() {
 	r := gin.Default()
-	r.GET("apiName/", controllers.GetAllNames)
-
-	r.POST("apiName/name", controllers.CreateName)
-	r.GET("apiName/:id", controllers.SearchNameByID)
-	r.DELETE("apiName/:id", controllers.DeleteName)
-	r.PATCH("apiName/:id", controllers.UpdateName)
-	r.GET("apiName/metaphone/:mtf", controllers.SearchNameByMetaphone)
+	r.POST("/name", controllers.CreateName)
+	r.DELETE("/:id", controllers.DeleteName)
+	r.PATCH("/:id", controllers.UpdateName)
+	r.GET("/:id", controllers.SearchNameByID)
+	r.GET("/name/:name", controllers.SearchSimilarNames)
 
 	err := r.Run(door)
 	if err != nil {
