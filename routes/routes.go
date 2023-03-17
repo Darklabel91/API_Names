@@ -13,7 +13,8 @@ func HandleRequests() {
 	r.DELETE("/:id", controllers.DeleteName)
 	r.PATCH("/:id", controllers.UpdateName)
 	r.GET("/:id", controllers.SearchNameByID)
-	r.GET("/name/:name", controllers.SearchSimilarNames)
+	r.GET("/name/:name", controllers.GetName)
+	r.GET("/metaphone/:name", controllers.SearchSimilarNames)
 
 	err := r.Run(door)
 	if err != nil {

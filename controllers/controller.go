@@ -10,54 +10,6 @@ import (
 	"strings"
 )
 
-func SearchSimilarNames(c *gin.Context) {
-	var names []models.NameType
-
-	//Name to be searched
-	name := c.Params.ByName("name")
-	mtf := metaphone.Pack(name)
-
-	database.Db.Where("metaphone = ?", metaphone.Pack(name)).Find(&names)
-
-	if len(names) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"Not found": "metaphone not found", "metaphone": mtf})
-		return
-	}
-
-	var similarNames []string
-	for _, n := range names {
-		if metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name)) >= 0.8 {
-			similarNames = append(similarNames, n.Name)
-			varWords := strings.Split(n.NameVariations, "|")
-			for _, vw := range varWords {
-				if vw != "" {
-					similarNames = append(similarNames, strings.TrimSpace(vw))
-				}
-			}
-		}
-
-		if len(similarNames) == 0 {
-			similarNames = append(similarNames, n.Name)
-			varWords := strings.Split(n.NameVariations, "|")
-			for _, vw := range varWords {
-				if vw != "" {
-					similarNames = append(similarNames, strings.TrimSpace(vw))
-				}
-			}
-		}
-
-		sort.Strings(similarNames)
-
-	}
-
-	c.JSON(200, gin.H{
-		"Name":            strings.ToUpper(name),
-		"metaphone":       mtf,
-		"name_variations": similarNames,
-	})
-
-}
-
 //CreateName create new name on database of type NameType
 func CreateName(c *gin.Context) {
 	var name models.NameType
@@ -113,5 +65,69 @@ func UpdateName(c *gin.Context) {
 
 	database.Db.Model(&name).UpdateColumns(name)
 	c.JSON(http.StatusOK, name)
+
+}
+
+//GetName read name by name
+func GetName(c *gin.Context) {
+	var name models.NameType
+
+	n := c.Params.ByName("name")
+	database.Db.Where("name = ?", strings.ToUpper(n)).Find(&name)
+
+	if name.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"Not found": "name not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, name)
+}
+
+//SearchSimilarNames search for all similar names by metaphone and levenshtein method
+func SearchSimilarNames(c *gin.Context) {
+	var names []models.NameType
+
+	//Name to be searched
+	name := c.Params.ByName("name")
+	mtf := metaphone.Pack(name)
+
+	database.Db.Where("metaphone = ?", metaphone.Pack(name)).Find(&names)
+
+	if len(names) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"Not found": "metaphone not found", "metaphone": mtf})
+		return
+	}
+
+	var similarNames []string
+	for _, n := range names {
+		if metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name)) >= 0.8 {
+			similarNames = append(similarNames, n.Name)
+			varWords := strings.Split(n.NameVariations, "|")
+			for _, vw := range varWords {
+				if vw != "" {
+					similarNames = append(similarNames, strings.TrimSpace(vw))
+				}
+			}
+		}
+
+		if len(similarNames) == 0 {
+			similarNames = append(similarNames, n.Name)
+			varWords := strings.Split(n.NameVariations, "|")
+			for _, vw := range varWords {
+				if vw != "" {
+					similarNames = append(similarNames, strings.TrimSpace(vw))
+				}
+			}
+		}
+
+		sort.Strings(similarNames)
+
+	}
+
+	c.JSON(200, gin.H{
+		"Name":           strings.ToUpper(name),
+		"metaphone":      mtf,
+		"nameVariations": similarNames,
+	})
 
 }
