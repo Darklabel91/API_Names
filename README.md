@@ -23,18 +23,6 @@ Every method expect Status:200 and JSON content-type as show bellow:
 
 
 ## Endpoint Examples
-- GET - /metaphone/:name 
-```json
-{
-  "Name": "THIAGO",
-  "metaphone": "TG",
-  "name_variations": [
-    "TAGO",
-    "TAGOR",
-    [...]
-  ]
-}
-```
 
 - GET - /:id 
 ```json
@@ -63,3 +51,48 @@ Every method expect Status:200 and JSON content-type as show bellow:
   "NameVariations": "|AARON|AHARON|AROM|ARON|ARYON|HARON|"
 ```
 
+- GET - /metaphone/:name 
+```json
+{
+  "Name": "TIAGO",
+  "metaphone": "TG",
+  "name_variations": [
+    "TAGO",
+    "TAGOR",
+    "TAIGA",
+    "TAIGO",
+    "TAIGOR",
+    "TAYGO",
+    "TAYGOR",
+    "TEAGO",
+    "TEAGO",
+    "THAGO",
+    "THAGO",
+    "THAIGO",
+    "THAIGOR",
+    "THAYGO",
+    "THAYGOR",
+    "THEAGO",
+    "THIAGA",
+    "THIAGO",
+    "THIEGO",
+    "THIIAGO",
+    "THIOGO",
+    "THYAGO",
+    "THYEGO",
+    "TIAGA",
+    "TIAGA",
+    "TIAGHO",
+    "TIAGO",
+    "TIAGO",
+    "TIAHGO",
+    "TIEGO",
+    "TIEGO",
+    "TIHAGO",
+    "TIIAGO",
+    "TIOGO",
+    "TIOGO",
+    "TYAGO"
+  ]
+}
+```
