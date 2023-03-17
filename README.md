@@ -49,6 +49,7 @@ Every method expect Status:200 and JSON content-type as show bellow:
   "Classification": "M",
   "Metaphone": "ARM",
   "NameVariations": "|AARON|AHARON|AROM|ARON|ARYON|HARON|"
+}
 ```
 
 - GET - /metaphone/:name 
