@@ -10,3 +10,8 @@ type NameType struct {
 	Metaphone      string `json:"Metaphone,omitempty"`
 	NameVariations string `json:"NameVariations,omitempty"`
 }
+
+type NameVar struct {
+	Name        string
+	Levenshtein float32
+}

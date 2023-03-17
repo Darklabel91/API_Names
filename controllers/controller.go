@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const levenshtein = 0.8
+const levenshtein = 0.85
 
 //CreateName create new name on database of type NameType
 func CreateName(c *gin.Context) {
@@ -94,28 +94,29 @@ func SearchSimilarNames(c *gin.Context) {
 	database.Db.Find(&names)
 
 	mtf := metaphone.Pack(name)
-	var similarNames []string
+	var similarNames []models.NameVar
 	for _, n := range names {
 		if metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
-			if metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name)) >= levenshtein {
-				similarNames = append(similarNames, n.Name)
+			smlt := metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
+			if smlt >= levenshtein {
+				similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: smlt})
 				varWords := strings.Split(n.NameVariations, "|")
 				for _, vw := range varWords {
 					if vw != "" {
-						similarNames = append(similarNames, strings.TrimSpace(vw))
+						similarNames = append(similarNames, models.NameVar{Name: vw, Levenshtein: smlt})
 					}
 				}
 			}
+
 			if len(similarNames) == 0 {
-				similarNames = append(similarNames, n.Name)
+				similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: smlt})
 				varWords := strings.Split(n.NameVariations, "|")
 				for _, vw := range varWords {
 					if vw != "" {
-						similarNames = append(similarNames, strings.TrimSpace(vw))
+						similarNames = append(similarNames, models.NameVar{Name: vw, Levenshtein: smlt})
 					}
 				}
 			}
-			sort.Strings(similarNames)
 		}
 	}
 
@@ -124,10 +125,34 @@ func SearchSimilarNames(c *gin.Context) {
 		return
 	}
 
+	nameV := orderByLevenshtein(similarNames)
+
 	c.JSON(200, gin.H{
 		"Name":           strings.ToUpper(name),
 		"metaphone":      mtf,
-		"nameVariations": similarNames,
+		"nameVariations": nameV,
 	})
 
+}
+
+//orderByLevenshtein used to sort an array by Levenshtein
+func orderByLevenshtein(arr []models.NameVar) []string {
+	// creates copy of original array
+	sortedArr := make([]models.NameVar, len(arr))
+	copy(sortedArr, arr)
+
+	// compilation func
+	cmp := func(i, j int) bool {
+		return sortedArr[i].Levenshtein > sortedArr[j].Levenshtein
+	}
+
+	// order by func
+	sort.Slice(sortedArr, cmp)
+
+	var retArry []string
+	for _, lv := range sortedArr {
+		retArry = append(retArry, lv.Name)
+	}
+
+	return retArry
 }
