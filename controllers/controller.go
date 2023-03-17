@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const leveinshtein = 0.8
+const levenshtein = 0.8
 
 //CreateName create new name on database of type NameType
 func CreateName(c *gin.Context) {
@@ -97,7 +97,7 @@ func SearchSimilarNames(c *gin.Context) {
 	var similarNames []string
 	for _, n := range names {
 		if metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
-			if metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name)) >= leveinshtein {
+			if metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name)) >= levenshtein {
 				similarNames = append(similarNames, n.Name)
 				varWords := strings.Split(n.NameVariations, "|")
 				for _, vw := range varWords {
