@@ -56,7 +56,7 @@ Every method expect Status:200 and JSON content-type as show bellow:
 {
   "Name": "TIAGO",
   "metaphone": "TG",
-  "name_variations": [
+  "nameVariations": [
     "TAGO",
     "TAGOR",
     "TAIGA",
