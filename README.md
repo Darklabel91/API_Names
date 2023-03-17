@@ -27,14 +27,14 @@ Every method expect Status:200 and JSON content-type as show bellow:
 - GET - /:id 
 ```json
 {
-  "ID": 1,
+  "ID": 3,
   "CreatedAt": "0001-01-01T00:00:00Z",
   "UpdatedAt": "0001-01-01T00:00:00Z",
   "DeletedAt": null,
-  "Name": "ALINE",
-  "Classification": "F",
-  "Metaphone": "A",
-  "NameVariations": "|AALINE|AILINE|ALEINE|ALIINE|ALINE|ALINER|ALINHE|ALINNE|ALYNE|ALYNNE|AYLINE|EALINE|ELEINE|ELINE|ELINER|ELINNE|ELYNE|EULINE|HALINE|HALYNE|HELEINE|HELINE|HELYNE|IALINE|ILEINE|ILINE|LEINE|LEINER|LEYNE|LINE|LINER|LUEINE|LUINE|LUYNE|LYNE|LYNNE|OLINE|UELINE|"
+  "Name": "ARON",
+  "Classification": "M",
+  "Metaphone": "ARM",
+  "NameVariations": "|AARON|AHARON|AROM|ARON|ARYON|HARON|"
 }
 ```
 
@@ -54,45 +54,22 @@ Every method expect Status:200 and JSON content-type as show bellow:
 - GET - /metaphone/:name 
 ```json
 {
-  "Name": "TIAGO",
-  "metaphone": "TG",
+  "Name": "ARON",
+  "metaphone": "ARM",
   "nameVariations": [
-    "TAGO",
-    "TAGOR",
-    "TAIGA",
-    "TAIGO",
-    "TAIGOR",
-    "TAYGO",
-    "TAYGOR",
-    "TEAGO",
-    "TEAGO",
-    "THAGO",
-    "THAGO",
-    "THAIGO",
-    "THAIGOR",
-    "THAYGO",
-    "THAYGOR",
-    "THEAGO",
-    "THIAGA",
-    "THIAGO",
-    "THIEGO",
-    "THIIAGO",
-    "THIOGO",
-    "THYAGO",
-    "THYEGO",
-    "TIAGA",
-    "TIAGA",
-    "TIAGHO",
-    "TIAGO",
-    "TIAGO",
-    "TIAHGO",
-    "TIEGO",
-    "TIEGO",
-    "TIHAGO",
-    "TIIAGO",
-    "TIOGO",
-    "TIOGO",
-    "TYAGO"
+    "AARON",
+    "AHARON",
+    "ARION",
+    "ARION",
+    "ARNOM",
+    "ARNON",
+    "ARNON",
+    "AROM",
+    "ARON",
+    "ARON",
+    "ARYON",
+    "HARNON",
+    "HARON"
   ]
 }
 ```
