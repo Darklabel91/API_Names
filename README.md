@@ -3,7 +3,7 @@
 API developed to search for a name by it's metaphone (br) on database and returns all similar names that it can found based on metaphone code and the levenshtein algorithm (0.8 of similarity).
 
 ## Setup
-- create a database, you can use [this script](https://github.com/Darklabel91/API_Names/blob/main/database/create_database.txt) if needed
+- create a MySql database, you can use [this script](https://github.com/Darklabel91/API_Names/blob/main/database/create_database.txt) if needed
 - run the API ```go run main.go```
 - use import wizzard on mysql workbench to upload the [.csv file](https://github.com/Darklabel91/API_Names/blob/main/database/name_types.csv)
 - have fun
