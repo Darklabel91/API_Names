@@ -95,6 +95,11 @@ func SearchSimilarNames(c *gin.Context) {
 
 	similarNames, mtf := findSimilarNames(names, name, levenshtein)
 
+	if len(names) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"Not found": "metaphone not found", "metaphone": mtf})
+		return
+	}
+
 	//when the similar names result's in less than 5 we search for every similar name of all similar names founded previously
 	if len(similarNames) < 5 {
 		for _, n := range similarNames {
