@@ -89,6 +89,8 @@ func GetName(c *gin.Context) {
 func SearchSimilarNames(c *gin.Context) {
 	var names []models.NameType
 
+	//TODO :: maybe we need to implement the metaphone search in all variations
+
 	//Name to be searched
 	name := c.Params.ByName("name")
 	database.Db.Find(&names)
