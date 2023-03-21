@@ -12,7 +12,7 @@ type ruleType struct {
 	phoneticRepresentation string
 	offset                 int
 	increment              int
-	isFirst                bool
+	isFirstCharOfInput     bool //Skips vowels unless one of them is the first character of the input string
 }
 
 const (
@@ -50,7 +50,7 @@ func Pack(s string) string {
 
 		//for every rule on rules array
 		for _, rule := range rules {
-			if rule.isFirst && (i > 0) {
+			if rule.isFirstCharOfInput && (i > 0) {
 				continue
 			}
 			if (i + rule.offset) < 0 {
