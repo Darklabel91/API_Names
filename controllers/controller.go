@@ -89,32 +89,17 @@ func GetName(c *gin.Context) {
 func SearchSimilarNames(c *gin.Context) {
 	var names []models.NameType
 
-	//TODO :: maybe we need to implement the metaphone search in all variations
-
 	//Name to be searched
 	name := c.Params.ByName("name")
 	database.Db.Find(&names)
 
-	mtf := metaphone.Pack(name)
-	var similarNames []models.NameVar
-	for _, n := range names {
-		if metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
-			smlt := metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
-			if smlt >= levenshtein {
-				similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: smlt})
-				varWords := strings.Split(n.NameVariations, "|")
-				for _, vw := range varWords {
-					if vw != "" {
-						similarNames = append(similarNames, models.NameVar{Name: vw, Levenshtein: smlt})
-					}
-				}
-			}
-		}
-	}
+	similarNames, mtf := findSimilarNames(names, name, levenshtein)
 
-	if len(names) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"Not found": "metaphone not found", "metaphone": mtf})
-		return
+	//when the similar names result's in less than 5 we search for every similar name of all similar names founded previously
+	if len(similarNames) < 5 {
+		for _, n := range similarNames {
+			similarNames, _ = findSimilarNames(names, n.Name, levenshtein)
+		}
 	}
 
 	nameV := orderByLevenshtein(similarNames)
@@ -124,6 +109,49 @@ func SearchSimilarNames(c *gin.Context) {
 		"metaphone":      mtf,
 		"nameVariations": nameV,
 	})
+
+}
+
+//findSimilarNames returns []models.NameVar and if necessary reduces' threshold to a minimum of 0.5
+func findSimilarNames(names []models.NameType, name string, threshold float32) ([]models.NameVar, string) {
+	similarNames, mtf := findNames(names, name, threshold)
+
+	//in case of empty return the levenshtein constant is downgraded to the minimum of 0.5
+	if len(similarNames) == 0 {
+		similarNames, _ = findNames(names, name, threshold-0.1)
+		if len(similarNames) == 0 {
+			similarNames, _ = findNames(names, name, threshold-0.2)
+		}
+		if len(similarNames) == 0 {
+			similarNames, _ = findNames(names, name, threshold-0.3)
+		}
+	}
+
+	return similarNames, mtf
+}
+
+//findNames return []models.NameVar with all similar names and the metaphone code of searched string
+func findNames(names []models.NameType, name string, threshold float32) ([]models.NameVar, string) {
+	var similarNames []models.NameVar
+
+	mtf := metaphone.Pack(name)
+	for _, n := range names {
+		if metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
+			similarity := metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
+			if similarity >= threshold {
+				similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: similarity})
+				varWords := strings.Split(n.NameVariations, "|")
+				for _, vw := range varWords {
+					if vw != "" {
+						similarNames = append(similarNames, models.NameVar{Name: vw, Levenshtein: similarity})
+					}
+				}
+			}
+
+		}
+	}
+
+	return similarNames, mtf
 
 }
 
