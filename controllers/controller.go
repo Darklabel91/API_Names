@@ -135,7 +135,7 @@ func findSimilarNames(names []models.NameType, name string, threshold float32) (
 	return similarNames, mtf
 }
 
-//findNames return []models.NameVar with all similar names and the metaphone code of searched string
+//findNames return []models.NameVar with all similar names and the metaphone code of searched string, called on  findSimilarNames
 func findNames(names []models.NameType, name string, threshold float32) ([]models.NameVar, string) {
 	var similarNames []models.NameVar
 
@@ -183,7 +183,7 @@ func orderByLevenshtein(arr []models.NameVar) []string {
 
 }
 
-//removeDuplicates remove duplicates of []string
+//removeDuplicates remove duplicates of []string, called on orderByLevenshtein
 func removeDuplicates(arr []string) []string {
 	var cleanArr []string
 
@@ -196,7 +196,7 @@ func removeDuplicates(arr []string) []string {
 	return cleanArr
 }
 
-//contains verifies if []string already has a specific string
+//contains verifies if []string already has a specific string, called on removeDuplicates
 func contains(s []string, str string) bool {
 	for _, v := range s {
 		if v == str {
