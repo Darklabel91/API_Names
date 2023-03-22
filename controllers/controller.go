@@ -2,11 +2,9 @@ package controllers
 
 import (
 	"github.com/Darklabel91/API_Names/database"
-	"github.com/Darklabel91/API_Names/metaphone"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"sort"
 	"strings"
 )
 
@@ -85,7 +83,7 @@ func GetName(c *gin.Context) {
 	c.JSON(http.StatusOK, name)
 }
 
-//SearchSimilarNames search for all similar names by metaphone and levenshtein method
+//SearchSimilarNames search for all similar names by metaphone and Levenshtein method
 func SearchSimilarNames(c *gin.Context) {
 	var names []models.NameType
 
@@ -95,7 +93,8 @@ func SearchSimilarNames(c *gin.Context) {
 
 	similarNames, mtf := findSimilarNames(names, name, levenshtein)
 
-	if len(names) == 0 {
+	//in case of failure in find a metaphone conde we return status not found
+	if len(names) == 0 || len(similarNames) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"Not found": "metaphone not found", "metaphone": mtf})
 		return
 	}
@@ -107,102 +106,22 @@ func SearchSimilarNames(c *gin.Context) {
 		}
 	}
 
+	//order all similar names from high to low Levenshtein
 	nameV := orderByLevenshtein(similarNames)
 
-	c.JSON(200, gin.H{
-		"Name":           strings.ToUpper(name),
-		"metaphone":      mtf,
-		"nameVariations": nameV,
-	})
-
-}
-
-//findSimilarNames returns []models.NameVar and if necessary reduces' threshold to a minimum of 0.5
-func findSimilarNames(names []models.NameType, name string, threshold float32) ([]models.NameVar, string) {
-	similarNames, mtf := findNames(names, name, threshold)
-
-	//in case of empty return the levenshtein constant is downgraded to the minimum of 0.5
-	if len(similarNames) == 0 {
-		similarNames, _ = findNames(names, name, threshold-0.1)
-		if len(similarNames) == 0 {
-			similarNames, _ = findNames(names, name, threshold-0.2)
-		}
-		if len(similarNames) == 0 {
-			similarNames, _ = findNames(names, name, threshold-0.3)
-		}
+	//build canonical return
+	canonicalEntity := findCanonical(name, nameV)
+	r := models.MetaphoneR{
+		ID:             canonicalEntity.ID,
+		CreatedAt:      canonicalEntity.CreatedAt,
+		UpdatedAt:      canonicalEntity.UpdatedAt,
+		DeletedAt:      canonicalEntity.DeletedAt,
+		Name:           canonicalEntity.Name,
+		Classification: canonicalEntity.Classification,
+		Metaphone:      canonicalEntity.Metaphone,
+		NameVariations: nameV,
 	}
 
-	return similarNames, mtf
-}
-
-//findNames return []models.NameVar with all similar names and the metaphone code of searched string, called on  findSimilarNames
-func findNames(names []models.NameType, name string, threshold float32) ([]models.NameVar, string) {
-	var similarNames []models.NameVar
-
-	mtf := metaphone.Pack(name)
-	for _, n := range names {
-		if metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
-			similarity := metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
-			if similarity >= threshold {
-				similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: similarity})
-				varWords := strings.Split(n.NameVariations, "|")
-				for _, vw := range varWords {
-					if vw != "" {
-						similarNames = append(similarNames, models.NameVar{Name: vw, Levenshtein: similarity})
-					}
-				}
-			}
-
-		}
-	}
-
-	return similarNames, mtf
-
-}
-
-//orderByLevenshtein used to sort an array by Levenshtein
-func orderByLevenshtein(arr []models.NameVar) []string {
-	// creates copy of original array
-	sortedArr := make([]models.NameVar, len(arr))
-	copy(sortedArr, arr)
-
-	// compilation func
-	cmp := func(i, j int) bool {
-		return sortedArr[i].Levenshtein > sortedArr[j].Levenshtein
-	}
-
-	// order by func
-	sort.Slice(sortedArr, cmp)
-
-	var retArry []string
-	for _, lv := range sortedArr {
-		retArry = append(retArry, lv.Name)
-	}
-
-	return removeDuplicates(retArry)
-
-}
-
-//removeDuplicates remove duplicates of []string, called on orderByLevenshtein
-func removeDuplicates(arr []string) []string {
-	var cleanArr []string
-
-	for _, a := range arr {
-		if !contains(cleanArr, a) {
-			cleanArr = append(cleanArr, a)
-		}
-	}
-
-	return cleanArr
-}
-
-//contains verifies if []string already has a specific string, called on removeDuplicates
-func contains(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-
-	return false
+	//return
+	c.JSON(200, r)
 }
