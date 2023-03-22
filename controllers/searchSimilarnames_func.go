@@ -70,27 +70,29 @@ func findNames(names []models.NameType, name string, threshold float32) ([]model
 
 }
 
-//orderByLevenshtein used to sort an array by Levenshtein
+//orderByLevenshtein used to sort an array by Levenshtein and len of the name
 func orderByLevenshtein(arr []models.NameVar) []string {
 	// creates copy of original array
 	sortedArr := make([]models.NameVar, len(arr))
 	copy(sortedArr, arr)
 
-	// compilation func
-	cmp := func(i, j int) bool {
-		return sortedArr[i].Levenshtein > sortedArr[j].Levenshtein
-	}
-
 	// order by func
-	sort.Slice(sortedArr, cmp)
+	sort.Slice(sortedArr, func(i, j int) bool {
+		if sortedArr[i].Levenshtein != sortedArr[j].Levenshtein {
+			return sortedArr[i].Levenshtein > sortedArr[j].Levenshtein
+		} else {
+			return len(sortedArr[i].Name) < len(sortedArr[j].Name)
+		}
+	})
 
-	var retArry []string
+	//return array
+	var retArr []string
 	for _, lv := range sortedArr {
-		retArry = append(retArry, lv.Name)
+		retArr = append(retArr, lv.Name)
 	}
 
-	return removeDuplicates(retArry)
-
+	//return without duplicates
+	return removeDuplicates(retArr)
 }
 
 //removeDuplicates remove duplicates of []string, called on orderByLevenshtein
