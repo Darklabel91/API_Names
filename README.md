@@ -25,7 +25,7 @@ Every method expect Status:200 and JSON content-type as show bellow:
 
 ## Endpoint Examples
 
-- GET - /:id 
+- GET - /3 
 ```json
 {
   "ID": 3,
@@ -39,7 +39,7 @@ Every method expect Status:200 and JSON content-type as show bellow:
 }
 ```
 
-- GET - /name/:name 
+- GET - /name/aron 
 ```json
 {
   "ID": 3,
@@ -53,7 +53,7 @@ Every method expect Status:200 and JSON content-type as show bellow:
 }
 ```
 
-- GET - /metaphone/:name 
+- GET - /metaphone/haron
 ```json
 {
   "ID": 3,
