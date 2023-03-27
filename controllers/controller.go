@@ -3,8 +3,8 @@ package controllers
 import (
 	"errors"
 	"github.com/Darklabel91/API_Names/database"
-	"github.com/Darklabel91/API_Names/metaphone"
 	"github.com/Darklabel91/API_Names/models"
+	Metaphone "github.com/Darklabel91/metaphone-br"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"sort"
@@ -90,15 +90,14 @@ func GetName(c *gin.Context) {
 func SearchSimilarNames(c *gin.Context) {
 	//name to be searched
 	name := c.Params.ByName("name")
-	nameMetaphone := metaphone.Pack(name)
+	nameMetaphone := Metaphone.Pack(name)
 
 	//find all metaphoneNames matching metaphone
 	var metaphoneNames []models.NameType
-
 	database.Db.Raw("select * from name_types where metaphone = ?", nameMetaphone).Find(&metaphoneNames)
 	similarNames := findNames(metaphoneNames, name, levenshtein)
 
-	//for recall purposes we can't only search for metaphone exact match's if no similar word is found.
+	//for recall purposes we can't only search for metaphone exact match's if no similar word is found
 	if len(metaphoneNames) == 0 || len(similarNames) == 0 {
 		metaphoneNames = searchForAllSimilarMetaphone(nameMetaphone)
 		similarNames = findNames(metaphoneNames, name, levenshtein)
@@ -115,6 +114,7 @@ func SearchSimilarNames(c *gin.Context) {
 	}
 
 	//when the similar metaphoneNames result's in less than 5 we search for every similar name of all similar metaphoneNames founded previously
+	//this step can be ignored if you want to
 	if len(similarNames) < 5 {
 		for _, n := range similarNames {
 			similar := findNames(metaphoneNames, n.Name, levenshtein)
@@ -125,7 +125,7 @@ func SearchSimilarNames(c *gin.Context) {
 	//order all similar metaphoneNames from high to low Levenshtein
 	nameV := orderByLevenshtein(similarNames)
 
-	//build canonical
+	//finds a name to consider Canonical on the database
 	canonicalEntity, err := findCanonical(name, metaphoneNames, nameV)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Not found": err.Error(), "metaphone": nameMetaphone})
@@ -155,7 +155,7 @@ func searchForAllSimilarMetaphone(mtf string) []models.NameType {
 
 	var rNames []models.NameType
 	for _, n := range names {
-		if metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
+		if Metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
 			rNames = append(rNames, n)
 		}
 	}
@@ -177,7 +177,7 @@ func findCanonical(name string, matchingMetaphoneNames []models.NameType, nameVa
 
 	//search for similar names on matchingMetaphoneNames
 	for _, similarName := range matchingMetaphoneNames {
-		if metaphone.SimilarityBetweenWords(name, similarName.Name) >= levenshtein {
+		if Metaphone.SimilarityBetweenWords(name, similarName.Name) >= levenshtein {
 			return similarName, nil
 		}
 	}
@@ -220,7 +220,7 @@ func findSimilarNames(name string, names []models.NameType, threshold float32) [
 	var similarNames []models.NameVar
 
 	for _, n := range names {
-		similarity := metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
+		similarity := Metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
 		if similarity >= threshold {
 			similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: similarity})
 			varWords := strings.Split(n.NameVariations, "|")

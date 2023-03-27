@@ -3,16 +3,10 @@ package database
 import (
 	"fmt"
 	"github.com/Darklabel91/API_Names/models"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-)
-
-const (
-	DbUsername = "root"
-	DbPassword = "root"
-	DbName     = "namesDatabase"
-	DbHost     = "127.0.0.1"
-	DbPort     = "3306"
+	"os"
 )
 
 var Db *gorm.DB
@@ -23,7 +17,21 @@ func InitDb() *gorm.DB {
 }
 
 func connectDB() *gorm.DB {
-	var err error
+	//load .env file
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//get .env variables
+	var (
+		DbUsername = os.Getenv("DB_USERNAME")
+		DbPassword = os.Getenv("DB_PASSWORD")
+		DbName     = os.Getenv("DB_NAME")
+		DbHost     = os.Getenv("DB_HOST")
+		DbPort     = os.Getenv("DB_PORT")
+	)
+
 	dsn := DbUsername + ":" + DbPassword + "@tcp" + "(" + DbHost + ":" + DbPort + ")/" + DbName + "?" + "parseTime=true&loc=Local"
 	fmt.Println("dsn : ", dsn)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})

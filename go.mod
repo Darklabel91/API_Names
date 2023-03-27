@@ -4,11 +4,14 @@ go 1.18
 
 require (
 	github.com/gin-gonic/gin v1.9.0
+	github.com/joho/godotenv v1.5.1
 	gorm.io/driver/mysql v1.4.7
 	gorm.io/gorm v1.24.6
 )
 
 require (
+	github.com/Darklabel91/Levenshtein v0.0.0-20230327182846-18e2b540c668 // indirect
+	github.com/Darklabel91/metaphone-br v0.0.0-20230327175255-f661f3ae637b // indirect
 	github.com/bytedance/sonic v1.8.5 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
