@@ -105,3 +105,5 @@ Every method expect Status:200 and JSON content-type as show bellow:
   ]
 }
 ```
+## Dependacy
+[metaphone-br](https://github.com/Darklabel91/metaphone-br)
