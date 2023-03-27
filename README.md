@@ -4,6 +4,7 @@ API developed to search for a name by it's metaphone (br) on database and return
 
 ## Setup
 - create a MySql database, you can use [this script](https://github.com/Darklabel91/API_Names/blob/main/database/create_database.txt) if needed
+- set a .env file on the project with DB_USERNAME, DB_PASSWORD, DB_NAME, DB_HOST and DB_PORT
 - run the API ```go run main.go```
 - use import wizzard on mysql workbench to upload the [.csv file](https://github.com/Darklabel91/API_Names/blob/main/database/name_types.csv)
 - have fun
