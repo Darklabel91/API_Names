@@ -6,12 +6,119 @@ import (
 	"github.com/Darklabel91/API_Names/models"
 	Metaphone "github.com/Darklabel91/metaphone-br"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 )
 
 const levenshtein = 0.8
+
+//Signup a new user to the database
+func Signup(c *gin.Context) {
+	//get email/pass off req body
+	var body struct {
+		Email    string
+		Password string
+	}
+
+	if c.Bind(&body) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
+		return
+	}
+
+	//hash the password
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to hash password"})
+		return
+	}
+
+	//create the user
+	user := models.User{Email: body.Email, Password: string(hash)}
+	result := database.Db.Create(&user)
+
+	if result.Error != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"Message": "Email already registered"})
+		return
+	}
+
+	//respond
+	c.JSON(http.StatusOK, gin.H{"Message": "User created", "User": user})
+}
+
+//Login verifies cookie session for login
+func Login(c *gin.Context) {
+	// Get the email and password from request body
+	var body struct {
+		Email    string
+		Password string
+	}
+
+	if c.Bind(&body) != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
+		return
+	}
+
+	// Look up requested user
+	var user models.User
+	database.Db.First(&user, "email = ?", body.Email)
+
+	if user.ID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
+		return
+	}
+
+	// Compare sent-in password with saved user password hash
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
+		return
+	}
+
+	// Generate JWT token
+	token, err := generateJWTToken(user.ID, 1)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"Message": "Failed to generate token"})
+		return
+	}
+
+	// Set token as a cookie
+	c.SetCookie("token", token, 60*60, "/", "", false, true)
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{"Token": token})
+}
+
+//generateJWTToken generates a JWT token with a specified expiration time and user ID. It first sets the token expiration time based on the amountDays parameter passed into the function.
+func generateJWTToken(userID uint, amountDays time.Duration) (string, error) {
+	// Set token expiration time
+	expirationTime := time.Now().Add(amountDays * 24 * time.Hour)
+
+	// Create JWT claims
+	claims := jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(expirationTime),
+		IssuedAt:  jwt.NewNumericDate(time.Now()),
+		Subject:   strconv.Itoa(int(userID)),
+	}
+
+	// Create token using claims and signing method
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Sign token using secret key
+	secretKey := []byte(os.Getenv("SECRET"))
+	signedToken, err := token.SignedString(secretKey)
+	if err != nil {
+		return "", errors.New("Failed to sign token")
+	}
+
+	return signedToken, nil
+}
 
 //CreateName create new name on database of type NameType
 func CreateName(c *gin.Context) {
@@ -43,7 +150,9 @@ func GetID(c *gin.Context) {
 //DeleteName delete name off database by id
 func DeleteName(c *gin.Context) {
 	var name models.NameType
+
 	id := c.Params.ByName("id")
+	database.Db.First(&name, id)
 
 	if name.ID == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"Not found": "name id not found"})
@@ -51,15 +160,20 @@ func DeleteName(c *gin.Context) {
 	}
 
 	database.Db.Delete(&name, id)
-	c.JSON(http.StatusOK, gin.H{"data": "name data deleted"})
+	c.JSON(http.StatusOK, gin.H{"Delete": "name id " + id + " was deleted"})
 }
 
 //UpdateName update name by id
 func UpdateName(c *gin.Context) {
 	var name models.NameType
-	id := c.Param("id")
 
+	id := c.Param("id")
 	database.Db.First(&name, id)
+
+	if name.ID == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"Not found": "name id not found"})
+		return
+	}
 
 	if err := c.ShouldBindJSON(&name); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -146,7 +260,7 @@ func SearchSimilarNames(c *gin.Context) {
 	c.JSON(200, r)
 }
 
-/*-------ALL BELLOW USED ONLY ON searchSimilarNames-------*/
+/*---------- used on SearchSimilarNames ----------*/
 
 //searchForAllSimilarMetaphone used in case of not finding exact metaphone match
 func searchForAllSimilarMetaphone(mtf string) []models.NameType {
@@ -204,8 +318,8 @@ func findCanonical(name string, matchingMetaphoneNames []models.NameType, nameVa
 	return models.NameType{}, errors.New("couldn't find canonical name")
 }
 
-//findNames return []models.NameVar with all similar names of searched string. For recall purpose we reduce the threshold given in 0.1 in case of empty return
-func findNames(names []models.NameType, name string, threshold float32) []models.NameVar {
+//findNames return []models.NameLevenshtein with all similar names of searched string. For recall purpose we reduce the threshold given in 0.1 in case of empty return
+func findNames(names []models.NameType, name string, threshold float32) []models.NameLevenshtein {
 	similarNames := findSimilarNames(name, names, threshold)
 	//reduce the threshold given in 0.1 and search again
 	if len(similarNames) == 0 {
@@ -216,17 +330,17 @@ func findNames(names []models.NameType, name string, threshold float32) []models
 }
 
 //findSimilarNames loop for all names given checking the similarity between words by a given threshold, called on findNames
-func findSimilarNames(name string, names []models.NameType, threshold float32) []models.NameVar {
-	var similarNames []models.NameVar
+func findSimilarNames(name string, names []models.NameType, threshold float32) []models.NameLevenshtein {
+	var similarNames []models.NameLevenshtein
 
 	for _, n := range names {
 		similarity := Metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
 		if similarity >= threshold {
-			similarNames = append(similarNames, models.NameVar{Name: n.Name, Levenshtein: similarity})
+			similarNames = append(similarNames, models.NameLevenshtein{Name: n.Name, Levenshtein: similarity})
 			varWords := strings.Split(n.NameVariations, "|")
 			for _, vw := range varWords {
 				if vw != "" {
-					similarNames = append(similarNames, models.NameVar{Name: vw, Levenshtein: similarity})
+					similarNames = append(similarNames, models.NameLevenshtein{Name: vw, Levenshtein: similarity})
 				}
 			}
 		}
@@ -236,9 +350,9 @@ func findSimilarNames(name string, names []models.NameType, threshold float32) [
 }
 
 //orderByLevenshtein used to sort an array by Levenshtein and len of the name
-func orderByLevenshtein(arr []models.NameVar) []string {
+func orderByLevenshtein(arr []models.NameLevenshtein) []string {
 	// creates copy of original array
-	sortedArr := make([]models.NameVar, len(arr))
+	sortedArr := make([]models.NameLevenshtein, len(arr))
 	copy(sortedArr, arr)
 
 	// order by func

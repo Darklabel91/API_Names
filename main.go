@@ -5,7 +5,10 @@ import (
 	"github.com/Darklabel91/API_Names/routes"
 )
 
-func main() {
+func init() {
 	database.InitDb()
+}
+
+func main() {
 	routes.HandleRequests()
 }
