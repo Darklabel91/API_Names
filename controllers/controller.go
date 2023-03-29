@@ -114,7 +114,7 @@ func generateJWTToken(userID uint, amountDays time.Duration) (string, error) {
 	secretKey := []byte(os.Getenv("SECRET"))
 	signedToken, err := token.SignedString(secretKey)
 	if err != nil {
-		return "", errors.New("Failed to sign token")
+		return "", errors.New("failed to sign token")
 	}
 
 	return signedToken, nil
@@ -213,7 +213,7 @@ func SearchSimilarNames(c *gin.Context) {
 
 	//for recall purposes we can't only search for metaphone exact match's if no similar word is found
 	if len(metaphoneNames) == 0 || len(similarNames) == 0 {
-		metaphoneNames = searchForAllSimilarMetaphone(nameMetaphone)
+		metaphoneNames = searchForAllSimilarMetaphone(nameMetaphone, c.MustGet("nameTypes").([]models.NameType))
 		similarNames = findNames(metaphoneNames, name, levenshtein)
 
 		if len(metaphoneNames) == 0 {
@@ -263,9 +263,9 @@ func SearchSimilarNames(c *gin.Context) {
 /*---------- used on SearchSimilarNames ----------*/
 
 //searchForAllSimilarMetaphone used in case of not finding exact metaphone match
-func searchForAllSimilarMetaphone(mtf string) []models.NameType {
-	var names []models.NameType
-	database.Db.Raw("select * from name_types").Find(&names)
+func searchForAllSimilarMetaphone(mtf string, names []models.NameType) []models.NameType {
+	//var names []models.NameType
+	//database.Db.Raw("SELECT * FROM name_types").Find(&names)
 
 	var rNames []models.NameType
 	for _, n := range names {

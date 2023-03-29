@@ -57,7 +57,6 @@ func connectDB() *gorm.DB {
 	}
 
 	dsn := DbUsername + ":" + DbPassword + "@tcp" + "(" + DbHost + ":" + DbPort + ")/" + DbName + "?" + "parseTime=true&loc=Local"
-	fmt.Println("dsn : ", dsn)
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -83,7 +82,6 @@ func connectDB() *gorm.DB {
 }
 
 func createDatabase(host, username, password, dbName string) error {
-	fmt.Println("cra")
 	// Set up the MySQL DSN string
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=True&loc=Local", username, password, host)
 
@@ -97,28 +95,24 @@ func createDatabase(host, username, password, dbName string) error {
 	var result int64
 	db.Raw("SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?", dbName).Scan(&result)
 	if result > 0 {
-		fmt.Println("database already exists")
 		return nil
 	}
 
 	// Create the database
-	fmt.Println("creating database")
 	err = db.Exec(fmt.Sprintf("CREATE DATABASE %s", dbName)).Error
 	if err != nil {
 		return fmt.Errorf("failed to create database: %v", err)
 	}
+	fmt.Println("-	Create Database")
 
 	return nil
 }
 
 func createRoot() error {
 	var user models.User
-	Db.First(&user, 1)
+	Db.Raw("select * from users where id = 1").Find(&user)
 
 	if user.ID == 0 {
-		fmt.Println("creating user root")
-
-		//password
 		hash, err := bcrypt.GenerateFromPassword([]byte(os.Getenv("SECRET")), 10)
 		if err != nil {
 			return err
@@ -131,13 +125,11 @@ func createRoot() error {
 
 		Db.Create(&userRoot)
 
-		fmt.Println("root user created")
-
-		return nil
-	} else {
-		fmt.Println("root user already on the database")
+		fmt.Println("-	Created first user")
 		return nil
 	}
+
+	return nil
 }
 
 func uploadCSVNameTypes() error {
@@ -146,7 +138,7 @@ func uploadCSVNameTypes() error {
 
 	if name.ID == 0 {
 		start := time.Now()
-		fmt.Println("initiating csv upload to the database")
+		fmt.Println("-	Upload data start")
 
 		filePath := "database/name_types .csv"
 		file, err := os.Open(filePath)
@@ -183,10 +175,9 @@ func uploadCSVNameTypes() error {
 			}
 		}
 
-		fmt.Println("csv upload finished in:" + time.Since(start).String())
+		fmt.Println("-	Upload data finished", time.Since(start).String())
 		return nil
 	}
-	fmt.Println("csv already imported")
 	return nil
 
 }
