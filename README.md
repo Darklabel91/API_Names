@@ -147,7 +147,7 @@ Return: ```status 200```
   ]
 }
 ```
-## Dependacy
+## Dependencies
 - [METAPHONE - BR](https://github.com/DanielFillol/metaphone-br)
 - [GIN](github.com/gin-gonic/gin)
 - [GORM](https://gorm.io)
