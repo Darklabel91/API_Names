@@ -92,7 +92,7 @@ func Login(c *gin.Context) {
 	c.SetCookie("token", token, 60*60, "/", "", false, true)
 
 	// Return success response
-	c.JSON(http.StatusOK, gin.H{"Token": token})
+	c.JSON(http.StatusOK, gin.H{})
 }
 
 //generateJWTToken generates a JWT token with a specified expiration time and user ID. It first sets the token expiration time based on the amountDays parameter passed into the function.
