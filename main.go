@@ -6,11 +6,12 @@ import (
 	"github.com/Darklabel91/API_Names/routes"
 )
 
-func init() {
-	database.InitDb()
-}
-
 func main() {
+	r := database.InitDb()
+	if r == nil {
+		return
+	}
+
 	fmt.Println("-	live")
 	routes.HandleRequests()
 }

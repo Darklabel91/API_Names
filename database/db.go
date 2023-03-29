@@ -19,6 +19,9 @@ var Db *gorm.DB
 
 func InitDb() *gorm.DB {
 	Db = connectDB()
+	if Db == nil {
+		return nil
+	}
 
 	err := createRoot()
 	if err != nil {
@@ -37,7 +40,8 @@ func connectDB() *gorm.DB {
 	//load .env file
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(".env file was not found. You should add a .env file on project root with:\nDB_USERNAME \nDB_PASSWORD \nDB_NAME \nDB_HOST \nDB_PORT \nSECRET")
+		return nil
 	}
 
 	//get .env variables
