@@ -1,32 +1,73 @@
 # API_Names
 
-API developed to search for a name by it's metaphone (br) on database and returns all similar names that it can found based on metaphone code and the levenshtein algorithm (0.8 of similarity).
+The API_Names project is designed to find a name and its possible variations from a given name, and correct any misspellings. It uses the Metaphone (br) algorithm to search the database and the Levenshtein distance method for correction.
 
-## Setup
-- create a MySql database, you can use [this script](https://github.com/Darklabel91/API_Names/blob/main/database/create_database.txt) if needed
-- set a .env file on the project with ```DB_USERNAME```, ```DB_PASSWORD```, ```DB_NAME```, ```DB_HOST``` and ```DB_PORT```
-- run the API ```go run main.go```
-- use import wizzard on mysql workbench to upload the [.csv file](https://github.com/Darklabel91/API_Names/blob/main/database/name_types.csv)
-- have fun
+## How to Run
 
-## API
-This project suports a simple CRUD. the main endpoint is  ```/name``` where you can search for a name and it returns the name, metaphone code and all it's variations
+Before running the API, make sure you have MySQL installed on your machine. Then, create a .env file and set the following environment variables:
+ ```
+DB_USERNAME
+DB_PASSWORD
+DB_NAME
+DB_HOST
+DB_PORT
+SECRET
+```
+Finally, run the API using the command:
+```go
+go run main.go
+```
 
-Every method expect Status:200 and JSON content-type as show bellow:
+## API Endpoints
+The main endpoint for the API is ```http://localhost:8080/metaphone/:name```. You need to log in to get an access token before you can access any other endpoint. We use JWT to generate access tokens.
 
-| Req    | Endpoint                               | Description                         | Success           | Error              |
-|--------|----------------------------------------|-------------------------------------|-------------------|--------------------|
-| POST   | /name                                  | Create a name in the database       | Status:200 - JSON | Status: 400 - JSON |
-| DELETE | /:id                                   | Delete a name by given id           | Status:200 - JSON | Status: 404 - JSON |
-| PUT    | /:id                                   | Update a name by given id           | Status:200 - JSON | Status: 500 - JSON |
-| GET    | /:id                                   | Read name with given id             | Status:200 - JSON | Status: 400 - JSON |
-| GET    | /name/:name                            | Read name with given name           | Status:200 - JSON | Status: 404 - JSON |
-| GET    | /metaphone/:name                       | Read metaphones of given name       | Status:200 - JSON | Status: 404 - JSON |
+The following table shows the available endpoints, their corresponding HTTP methods, and a brief description:
+| Req    | Endpoint                               | Description                         | Success           | Error                  |
+|--------|----------------------------------------|-------------------------------------|-------------------|------------------------|
+| POST   | /signup                                | Create a new user                   | Status:200 - JSON | Status: 400/401 - JSON |
+| POST   | /login                                 | Login user on API                   | Status:200 - JSON | Status: 400/401 - JSON |
+| POST   | /name                                  | Create a name in the database       | Status:200 - JSON | Status: 400/401 - JSON |
+| DELETE | /:id                                   | Delete a name by given id           | Status:200 - JSON | Status: 404/401 - JSON |
+| PUT    | /:id                                   | Update a name by given id           | Status:200 - JSON | Status: 500/401 - JSON |
+| GET    | /:id                                   | Read name with given id             | Status:200 - JSON | Status: 400/401 - JSON |
+| GET    | /name/:name                            | Read name with given name           | Status:200 - JSON | Status: 404/401 - JSON |
+| GET    | /metaphone/:name                       | Read metaphones of given name       | Status:200 - JSON | Status: 404/401 - JSON |
 
 
 ## Endpoint Examples
 
-- GET - /3 
+- POST - ```http://localhost:8080/signup```
+```json
+{
+    "Email": "user@user.com",
+    "Password": "123456"
+}
+```
+Return:
+```json
+{
+    "Message": "User created",
+    "User": {
+        "ID": 2,
+        "CreatedAt": "2023-03-28T23:18:23.624-03:00",
+        "UpdatedAt": "2023-03-28T23:18:23.624-03:00",
+        "DeletedAt": null,
+        "Email": "user@user.com",
+        "Password": "$2a$10$crIN3KKScm.HafCl9qQkzeehuK5XUfnGrAxCyymyMPnNHkwDwHBVS"
+    }
+}
+```
+
+- POST - ```http://localhost:8080/login```
+```json
+{
+    "Email": "user@user.com",
+    "Password": "123456"
+}
+```
+Return: ```status 200```
+
+- GET - ```http://localhost:8080/3```
 ```json
 {
   "ID": 3,
@@ -40,7 +81,7 @@ Every method expect Status:200 and JSON content-type as show bellow:
 }
 ```
 
-- GET - /name/aron 
+- GET - ```http://localhost:8080/name/aron```
 ```json
 {
   "ID": 3,
@@ -54,7 +95,7 @@ Every method expect Status:200 and JSON content-type as show bellow:
 }
 ```
 
-- GET - /metaphone/haron
+- GET - ```http://localhost:8080/metaphone/haron```
 ```json
 {
   "ID": 3,
@@ -107,4 +148,9 @@ Every method expect Status:200 and JSON content-type as show bellow:
 }
 ```
 ## Dependacy
-[metaphone-br](https://github.com/Darklabel91/metaphone-br)
+- [METAPHONE - BR](https://github.com/DanielFillol/metaphone-br)
+- [GIN](github.com/gin-gonic/gin)
+- [GORM](https://gorm.io)
+- [MySQL - GORM](https://github.com/go-gorm/mysql)
+- [GO.ENV](github.com/joho/godotenv)
+- [JWT](https://github.com/golang-jwt/jwt)
