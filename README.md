@@ -149,8 +149,8 @@ Return: ```status 200```
 ```
 ## Dependencies
 - [METAPHONE - BR](https://github.com/DanielFillol/metaphone-br)
-- [GIN](github.com/gin-gonic/gin)
+- [GIN](https://github.com/gin-gonic/gin)
 - [GORM](https://gorm.io)
 - [MySQL - GORM](https://github.com/go-gorm/mysql)
-- [GO.ENV](github.com/joho/godotenv)
+- [GO.ENV](https://github.com/joho/godotenv)
 - [JWT](https://github.com/golang-jwt/jwt)
