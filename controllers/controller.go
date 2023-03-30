@@ -197,19 +197,36 @@ func GetName(c *gin.Context) {
 
 //SearchSimilarNames search for all similar names by metaphone and Levenshtein method
 func SearchSimilarNames(c *gin.Context) {
+	var metaphoneNames []models.NameType
+
 	//name to be searched
 	name := c.Params.ByName("name")
 	nameMetaphone := Metaphone.Pack(name)
 
+	//search perfect match
+	database.Db.Raw("select * from name_types where name = ?", strings.ToUpper(name)).Find(&metaphoneNames)
+	if len(metaphoneNames) == 1 {
+		r := models.MetaphoneR{
+			ID:             metaphoneNames[0].ID,
+			CreatedAt:      metaphoneNames[0].CreatedAt,
+			UpdatedAt:      metaphoneNames[0].UpdatedAt,
+			DeletedAt:      metaphoneNames[0].DeletedAt,
+			Name:           metaphoneNames[0].Name,
+			Classification: metaphoneNames[0].Classification,
+			Metaphone:      metaphoneNames[0].Metaphone,
+			NameVariations: []string{metaphoneNames[0].NameVariations},
+		}
+		c.JSON(200, r)
+		return
+	}
+
 	//find all metaphoneNames matching metaphone
-	var metaphoneNames []models.NameType
 	database.Db.Raw("select * from name_types where metaphone = ?", nameMetaphone).Find(&metaphoneNames)
 	similarNames := findNames(metaphoneNames, name, levenshtein)
 
 	//for recall purposes we can't only search for metaphone exact match's if no similar word is found
-	preloadTable := c.MustGet("nameTypes").([]models.NameType)
-
 	if len(metaphoneNames) == 0 || len(similarNames) == 0 {
+		preloadTable := c.MustGet("nameTypes").([]models.NameType)
 		metaphoneNames = searchForAllSimilarMetaphone(nameMetaphone, preloadTable)
 		similarNames = findNames(metaphoneNames, name, levenshtein)
 
@@ -255,6 +272,7 @@ func SearchSimilarNames(c *gin.Context) {
 		NameVariations: nameV,
 	}
 	c.JSON(200, r)
+	return
 }
 
 /*---------- used on SearchSimilarNames ----------*/

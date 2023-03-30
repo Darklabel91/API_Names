@@ -3,21 +3,21 @@ package routes
 import (
 	"github.com/Darklabel91/API_Names/controllers"
 	"github.com/Darklabel91/API_Names/database"
-	"github.com/Darklabel91/API_Names/log"
 	"github.com/Darklabel91/API_Names/middleware"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
+	"os"
 	"sync"
 )
 
-const door = ":8080"
+const DOOR = ":8080"
+const FILENAME = "logs.txt"
 
 var allowedIPs = []string{"127.0.0.1", "::1"} // List of allowed IP addresses
 
 func HandleRequests() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
-	r.Use(log.LocalLog())
 
 	//use the OnlyAllowIPs middleware on all routes
 	err := r.SetTrustedProxies(allowedIPs)
@@ -25,8 +25,12 @@ func HandleRequests() {
 		return
 	}
 
-	//export every log to a local file and upload to the database on every 1000k request's
-	//r.Use(log.Testando)
+	// Create a file to store the logs
+	file, err := os.OpenFile(FILENAME, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return
+	}
+	r.Use(gin.LoggerWithWriter(file))
 
 	//set up routes
 	r.POST("/signup", controllers.Signup)
@@ -46,10 +50,11 @@ func HandleRequests() {
 	gin.Logger()
 
 	// run
-	err = r.Run(door)
+	err = r.Run(DOOR)
 	if err != nil {
 		return
 	}
+
 }
 
 //waitGroupMetaphone crates a waiting group for handling requests using controllers.SearchSimilarNames
