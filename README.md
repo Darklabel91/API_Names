@@ -17,6 +17,16 @@ Finally, run the API using the command:
 ```go
 go run main.go
 ```
+on the first run the prompt will return:
+```
+go run main.go
+-       Create Database
+-       Created first user
+-       Upload data start
+-       Upload data finished time_uploading
+-       Listening and serving
+```
+
 
 ## API Endpoints
 The main endpoint for the API is ```http://localhost:8080/metaphone/:name```. You need to log in to get an access token before you can access any other endpoint. We use JWT to generate access tokens.
