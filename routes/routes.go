@@ -23,28 +23,30 @@ func HandleRequests() {
 		return
 	}
 
-	//signup and login
+	//set up routes
 	r.POST("/signup", controllers.Signup)
 	r.POST("/login", controllers.Login)
 
-	//Other routes
-	r.Use(middleware.RequireAuth)
+	//define middleware that validate token
+	r.Use(middleware.RequireAuth())
 
+	//set up caching middleware for GET requests
+	r.GET("/:id", middleware.ValidateIDParam(), waitGroupID)
+	r.DELETE("/:id", middleware.ValidateIDParam(), controllers.DeleteName)
+	r.PATCH("/:id", middleware.ValidateIDParam(), controllers.UpdateName)
 	r.POST("/name", controllers.CreateName)
-	r.DELETE("/:id", controllers.DeleteName)
-	r.PATCH("/:id", controllers.UpdateName)
-	r.GET("/:id", WaitGroupID)
-	r.GET("/name/:name", WaitGroupName)
-	r.GET("/metaphone/:name", PreloadNameTypes(), WaitGroupMetaphone)
+	r.GET("/name/:name", middleware.ValidateNameParam(), waitGroupName)
+	r.GET("/metaphone/:name", middleware.ValidateNameParam(), preloadNameTypes(), middleware.ValidateNameParam(), waitGroupMetaphone)
 
+	// run
 	err = r.Run(door)
 	if err != nil {
-		panic(err)
+		return
 	}
 }
 
-//WaitGroupMetaphone crates a waiting group for handling requests using controllers.SearchSimilarNames
-func WaitGroupMetaphone(c *gin.Context) {
+//waitGroupMetaphone crates a waiting group for handling requests using controllers.SearchSimilarNames
+func waitGroupMetaphone(c *gin.Context) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -57,8 +59,8 @@ func WaitGroupMetaphone(c *gin.Context) {
 	wg.Wait()
 }
 
-//WaitGroupName crates a waiting group for handling requests using controllers.GetName
-func WaitGroupName(c *gin.Context) {
+//waitGroupName crates a waiting group for handling requests using controllers.GetName
+func waitGroupName(c *gin.Context) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -71,8 +73,8 @@ func WaitGroupName(c *gin.Context) {
 	wg.Wait()
 }
 
-// WaitGroupID  crates a waiting group for handling requests using controllers.GetID
-func WaitGroupID(c *gin.Context) {
+// waitGroupID  crates a waiting group for handling requests using controllers.GetID
+func waitGroupID(c *gin.Context) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -85,8 +87,8 @@ func WaitGroupID(c *gin.Context) {
 	wg.Wait()
 }
 
-//PreloadNameTypes for better response time we load all records of the table
-func PreloadNameTypes() gin.HandlerFunc {
+//preloadNameTypes for better response time we load all records of the table
+func preloadNameTypes() gin.HandlerFunc {
 	var nameTypes []models.NameType
 	if err := database.Db.Find(&nameTypes).Error; err != nil {
 		return nil

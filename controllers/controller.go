@@ -21,10 +21,7 @@ const levenshtein = 0.8
 //Signup a new user to the database
 func Signup(c *gin.Context) {
 	//get email/pass off req body
-	var body struct {
-		Email    string
-		Password string
-	}
+	var body models.InputBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
@@ -54,10 +51,7 @@ func Signup(c *gin.Context) {
 //Login verifies cookie session for login
 func Login(c *gin.Context) {
 	// Get the email and password from request body
-	var body struct {
-		Email    string
-		Password string
-	}
+	var body models.InputBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
@@ -92,7 +86,7 @@ func Login(c *gin.Context) {
 	c.SetCookie("token", token, 60*60, "/", "", false, true)
 
 	// Return success response
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{"Message": "Login successful"})
 }
 
 //generateJWTToken generates a JWT token with a specified expiration time and user ID. It first sets the token expiration time based on the amountDays parameter passed into the function.
@@ -212,8 +206,10 @@ func SearchSimilarNames(c *gin.Context) {
 	similarNames := findNames(metaphoneNames, name, levenshtein)
 
 	//for recall purposes we can't only search for metaphone exact match's if no similar word is found
+	preloadTable := c.MustGet("nameTypes").([]models.NameType)
+
 	if len(metaphoneNames) == 0 || len(similarNames) == 0 {
-		metaphoneNames = searchForAllSimilarMetaphone(nameMetaphone, c.MustGet("nameTypes").([]models.NameType))
+		metaphoneNames = searchForAllSimilarMetaphone(nameMetaphone, preloadTable)
 		similarNames = findNames(metaphoneNames, name, levenshtein)
 
 		if len(metaphoneNames) == 0 {
@@ -264,9 +260,6 @@ func SearchSimilarNames(c *gin.Context) {
 
 //searchForAllSimilarMetaphone used in case of not finding exact metaphone match
 func searchForAllSimilarMetaphone(mtf string, names []models.NameType) []models.NameType {
-	//var names []models.NameType
-	//database.Db.Raw("SELECT * FROM name_types").Find(&names)
-
 	var rNames []models.NameType
 	for _, n := range names {
 		if Metaphone.IsMetaphoneSimilar(mtf, n.Metaphone) {
