@@ -82,6 +82,13 @@ func connectDB() *gorm.DB {
 		return nil
 	}
 
+	//create table log
+	err = db.AutoMigrate(&models.Log{})
+	if err != nil {
+		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
+		return nil
+	}
+
 	return db
 }
 

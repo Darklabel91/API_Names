@@ -3,6 +3,7 @@ package routes
 import (
 	"github.com/Darklabel91/API_Names/controllers"
 	"github.com/Darklabel91/API_Names/database"
+	"github.com/Darklabel91/API_Names/log"
 	"github.com/Darklabel91/API_Names/middleware"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
@@ -16,12 +17,16 @@ var allowedIPs = []string{"127.0.0.1", "::1"} // List of allowed IP addresses
 func HandleRequests() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
+	r.Use(log.LocalLog())
 
-	// Use the OnlyAllowIPs middleware on all routes
+	//use the OnlyAllowIPs middleware on all routes
 	err := r.SetTrustedProxies(allowedIPs)
 	if err != nil {
 		return
 	}
+
+	//export every log to a local file and upload to the database on every 1000k request's
+	//r.Use(log.Testando)
 
 	//set up routes
 	r.POST("/signup", controllers.Signup)
@@ -37,6 +42,8 @@ func HandleRequests() {
 	r.POST("/name", controllers.CreateName)
 	r.GET("/name/:name", middleware.ValidateNameParam(), waitGroupName)
 	r.GET("/metaphone/:name", middleware.ValidateNameParam(), preloadNameTypes(), middleware.ValidateNameParam(), waitGroupMetaphone)
+
+	gin.Logger()
 
 	// run
 	err = r.Run(door)

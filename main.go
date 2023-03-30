@@ -12,6 +12,6 @@ func main() {
 		return
 	}
 
-	fmt.Println("-	live")
+	fmt.Println("-	Listening and serving")
 	routes.HandleRequests()
 }

@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const MaxThreadsByToken = 5
+const MaxThreadsByToken = 10
 
 // RequireAuth returns a Gin middleware function that checks for a valid JWT token in the request header or cookie, and limits the rate of requests to prevent DDoS attacks.
 //	- The rate limit is enforced using a token bucket algorithm.
