@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	r := database.InitDb()
+	r := database.InitDB()
 	if r == nil {
 		return
 	}

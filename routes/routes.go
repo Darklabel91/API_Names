@@ -93,7 +93,7 @@ func waitGroupID(c *gin.Context) {
 //preloadNameTypes for better response time we load all records of the table
 func preloadNameTypes() gin.HandlerFunc {
 	var nameTypes []models.NameType
-	if err := database.Db.Find(&nameTypes).Error; err != nil {
+	if err := database.DB.Find(&nameTypes).Error; err != nil {
 		return nil
 	}
 

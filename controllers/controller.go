@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"fmt"
 	"github.com/Darklabel91/API_Names/database"
 	"github.com/Darklabel91/API_Names/models"
 	Metaphone "github.com/Darklabel91/metaphone-br"
@@ -38,7 +37,7 @@ func Signup(c *gin.Context) {
 
 	//create the user
 	user := models.User{Email: body.Email, Password: string(hash), IP: c.ClientIP()}
-	result := database.Db.Create(&user)
+	result := database.DB.Create(&user)
 
 	if result.Error != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Email already registered"})
@@ -61,7 +60,7 @@ func Login(c *gin.Context) {
 
 	// Look up requested user
 	var user models.User
-	database.Db.First(&user, "email = ?", body.Email)
+	database.DB.First(&user, "email = ?", body.Email)
 
 	if user.ID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
@@ -124,7 +123,7 @@ func CreateName(c *gin.Context) {
 		return
 	}
 
-	database.Db.Create(&name)
+	database.DB.Create(&name)
 	c.JSON(http.StatusOK, name)
 }
 
@@ -133,7 +132,7 @@ func GetID(c *gin.Context) {
 	var name models.NameType
 
 	id := c.Params.ByName("id")
-	database.Db.First(&name, id)
+	database.DB.First(&name, id)
 
 	if name.ID == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"Not found": "name id not found"})
@@ -148,14 +147,14 @@ func DeleteName(c *gin.Context) {
 	var name models.NameType
 
 	id := c.Params.ByName("id")
-	database.Db.First(&name, id)
+	database.DB.First(&name, id)
 
 	if name.ID == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"Not found": "name id not found"})
 		return
 	}
 
-	database.Db.Delete(&name, id)
+	database.DB.Delete(&name, id)
 	c.JSON(http.StatusOK, gin.H{"Delete": "name id " + id + " was deleted"})
 }
 
@@ -164,7 +163,7 @@ func UpdateName(c *gin.Context) {
 	var name models.NameType
 
 	id := c.Param("id")
-	database.Db.First(&name, id)
+	database.DB.First(&name, id)
 
 	if name.ID == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"Not found": "name id not found"})
@@ -176,7 +175,7 @@ func UpdateName(c *gin.Context) {
 		return
 	}
 
-	database.Db.Model(&name).UpdateColumns(name)
+	database.DB.Model(&name).UpdateColumns(name)
 	c.JSON(http.StatusOK, name)
 }
 
@@ -185,7 +184,7 @@ func GetName(c *gin.Context) {
 	var name models.NameType
 
 	n := c.Params.ByName("name")
-	database.Db.Raw("select * from name_types where name = ?", strings.ToUpper(n)).Find(&name)
+	database.DB.Raw("select * from name_types where name = ?", strings.ToUpper(n)).Find(&name)
 
 	if name.ID == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"Not found": "name not found"})
@@ -199,7 +198,7 @@ func GetName(c *gin.Context) {
 //GetTrustedIPs return all IPS from user's on the database
 func GetTrustedIPs() []string {
 	var users []models.User
-	if err := database.Db.Find(&users).Error; err != nil {
+	if err := database.DB.Find(&users).Error; err != nil {
 		return nil
 	}
 
@@ -207,8 +206,6 @@ func GetTrustedIPs() []string {
 	for _, user := range users {
 		ips = append(ips, user.IP)
 	}
-
-	fmt.Println(ips)
 
 	return ips
 }
@@ -233,7 +230,7 @@ func SearchSimilarNames(c *gin.Context) {
 	nameMetaphone := Metaphone.Pack(name)
 
 	//search perfect match
-	database.Db.Raw("select * from name_types where name = ?", strings.ToUpper(name)).Find(&metaphoneNames)
+	database.DB.Raw("select * from name_types where name = ?", strings.ToUpper(name)).Find(&metaphoneNames)
 	if len(metaphoneNames) == 1 {
 		r := models.MetaphoneR{
 			ID:             metaphoneNames[0].ID,
@@ -250,7 +247,7 @@ func SearchSimilarNames(c *gin.Context) {
 	}
 
 	//find all metaphoneNames matching metaphone
-	database.Db.Raw("select * from name_types where metaphone = ?", nameMetaphone).Find(&metaphoneNames)
+	database.DB.Raw("select * from name_types where metaphone = ?", nameMetaphone).Find(&metaphoneNames)
 	similarNames := findNames(metaphoneNames, name, levenshtein)
 
 	//for recall purposes we can't only search for metaphone exact match's if no similar word is found
@@ -341,7 +338,7 @@ func findCanonical(name string, matchingMetaphoneNames []models.NameType, nameVa
 	for _, similarName := range nameVariations {
 		sn := strings.ToUpper(similarName)
 		if sn == n {
-			database.Db.Raw("select * from name_types where name = ?", sn).Find(&canonicalEntity)
+			database.DB.Raw("select * from name_types where name = ?", sn).Find(&canonicalEntity)
 			if canonicalEntity.ID != 0 {
 				return canonicalEntity, nil
 			}
@@ -350,7 +347,7 @@ func findCanonical(name string, matchingMetaphoneNames []models.NameType, nameVa
 
 	//in case of failure on other attempts, we search every nameVariations directly on database
 	for _, similarName := range nameVariations {
-		database.Db.Raw("select * from name_types where name = ?", strings.ToUpper(similarName)).Find(&canonicalEntity)
+		database.DB.Raw("select * from name_types where name = ?", strings.ToUpper(similarName)).Find(&canonicalEntity)
 		if canonicalEntity.ID != 0 {
 			return canonicalEntity, nil
 		}

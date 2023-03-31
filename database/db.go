@@ -17,11 +17,12 @@ import (
 	"time"
 )
 
-var Db *gorm.DB
+var DB *gorm.DB
 
-func InitDb() *gorm.DB {
-	Db = connectDB()
-	if Db == nil {
+//InitDB set up all database environment
+func InitDB() *gorm.DB {
+	DB = connectDB()
+	if DB == nil {
 		return nil
 	}
 
@@ -35,9 +36,10 @@ func InitDb() *gorm.DB {
 		return nil
 	}
 
-	return Db
+	return DB
 }
 
+//connectDB open connection and migrate tables ORM
 func connectDB() *gorm.DB {
 	//load .env file
 	err := godotenv.Load()
@@ -87,6 +89,7 @@ func connectDB() *gorm.DB {
 	return db
 }
 
+//createDatabase runs create database script
 func createDatabase(host, username, password, dbName string) error {
 	// Set up the MySQL DSN string
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=True&loc=Local", username, password, host)
@@ -114,9 +117,10 @@ func createDatabase(host, username, password, dbName string) error {
 	return nil
 }
 
+//createRoot creates a user directly from the server
 func createRoot() error {
 	var user models.User
-	Db.Raw("select * from users where id = 1").Find(&user)
+	DB.Raw("select * from users where id = 1").Find(&user)
 
 	if user.ID == 0 {
 		hash, err := bcrypt.GenerateFromPassword([]byte(os.Getenv("SECRET")), 10)
@@ -130,7 +134,7 @@ func createRoot() error {
 			IP:       getOutboundIP(),
 		}
 
-		Db.Create(&userRoot)
+		DB.Create(&userRoot)
 
 		fmt.Println("-	Created first user")
 		return nil
@@ -155,7 +159,7 @@ func getOutboundIP() string {
 //uploadCSVNameTypes
 func uploadCSVNameTypes() error {
 	var name models.NameType
-	Db.Raw("SELECT * FROM name_types WHERE id = 1").Find(&name)
+	DB.Raw("SELECT * FROM name_types WHERE id = 1").Find(&name)
 
 	if name.ID == 0 {
 		start := time.Now()
@@ -190,7 +194,7 @@ func uploadCSVNameTypes() error {
 					Metaphone:      metaphone.Pack(row[0]),
 					NameVariations: row[3],
 				}
-				if err = Db.Create(&nameType).Error; err != nil {
+				if err = DB.Create(&nameType).Error; err != nil {
 					return errors.New("error creating NameType:" + err.Error())
 				}
 			}
