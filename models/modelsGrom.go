@@ -18,16 +18,5 @@ type User struct {
 	gorm.Model
 	Email    string `gorm:"unique"`
 	Password string
-}
-
-//Log is the struct used to register the log file
-// Define a struct to hold the log data
-type Log struct {
-	gorm.Model
-	Time    string
-	Status  string
-	Latency string
-	IP      string
-	Method  string
-	Path    string
+	IP       string
 }

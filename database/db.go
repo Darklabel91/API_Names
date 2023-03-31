@@ -11,6 +11,8 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"io"
+	"log"
+	"net"
 	"os"
 	"time"
 )
@@ -82,13 +84,6 @@ func connectDB() *gorm.DB {
 		return nil
 	}
 
-	//create table log
-	err = db.AutoMigrate(&models.Log{})
-	if err != nil {
-		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
-		return nil
-	}
-
 	return db
 }
 
@@ -132,6 +127,7 @@ func createRoot() error {
 		userRoot := models.User{
 			Email:    "root@root.com",
 			Password: string(hash),
+			IP:       getOutboundIP(),
 		}
 
 		Db.Create(&userRoot)
@@ -143,6 +139,20 @@ func createRoot() error {
 	return nil
 }
 
+//getOutboundIP get preferred outbound ip of the server
+func getOutboundIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP.String()
+}
+
+//uploadCSVNameTypes
 func uploadCSVNameTypes() error {
 	var name models.NameType
 	Db.Raw("SELECT * FROM name_types WHERE id = 1").Find(&name)

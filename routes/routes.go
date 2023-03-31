@@ -6,31 +6,24 @@ import (
 	"github.com/Darklabel91/API_Names/middleware"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
-	"os"
 	"sync"
 )
 
 const DOOR = ":8080"
 const FILENAME = "logs.txt"
 
-var allowedIPs = []string{"127.0.0.1", "::1"} // List of allowed IP addresses
-
 func HandleRequests() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
 	//use the OnlyAllowIPs middleware on all routes
-	err := r.SetTrustedProxies(allowedIPs)
+	err := r.SetTrustedProxies(controllers.GetTrustedIPs())
 	if err != nil {
 		return
 	}
 
 	// Create a file to store the logs
-	file, err := os.OpenFile(FILENAME, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
-		return
-	}
-	r.Use(gin.LoggerWithWriter(file))
+	r.Use(controllers.SetLogger(FILENAME))
 
 	//set up routes
 	r.POST("/signup", controllers.Signup)
@@ -45,9 +38,7 @@ func HandleRequests() {
 	r.PATCH("/:id", middleware.ValidateIDParam(), controllers.UpdateName)
 	r.POST("/name", controllers.CreateName)
 	r.GET("/name/:name", middleware.ValidateNameParam(), waitGroupName)
-	r.GET("/metaphone/:name", middleware.ValidateNameParam(), preloadNameTypes(), middleware.ValidateNameParam(), waitGroupMetaphone)
-
-	gin.Logger()
+	r.GET("/metaphone/:name", middleware.ValidateNameParam(), preloadNameTypes(), waitGroupMetaphone)
 
 	// run
 	err = r.Run(DOOR)

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"github.com/Darklabel91/API_Names/database"
 	"github.com/Darklabel91/API_Names/models"
 	Metaphone "github.com/Darklabel91/metaphone-br"
@@ -36,7 +37,7 @@ func Signup(c *gin.Context) {
 	}
 
 	//create the user
-	user := models.User{Email: body.Email, Password: string(hash)}
+	user := models.User{Email: body.Email, Password: string(hash), IP: c.ClientIP()}
 	result := database.Db.Create(&user)
 
 	if result.Error != nil {
@@ -193,6 +194,34 @@ func GetName(c *gin.Context) {
 
 	c.JSON(http.StatusOK, name)
 	return
+}
+
+//GetTrustedIPs return all IPS from user's on the database
+func GetTrustedIPs() []string {
+	var users []models.User
+	if err := database.Db.Find(&users).Error; err != nil {
+		return nil
+	}
+
+	var ips []string
+	for _, user := range users {
+		ips = append(ips, user.IP)
+	}
+
+	fmt.Println(ips)
+
+	return ips
+}
+
+//SetLogger creates a .txt file to store API logs
+func SetLogger(fileName string) gin.HandlerFunc {
+	// Create a file to store the logs
+	file, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return nil
+	}
+
+	return gin.LoggerWithWriter(file)
 }
 
 //SearchSimilarNames search for all similar names by metaphone and Levenshtein method

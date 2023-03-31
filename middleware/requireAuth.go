@@ -12,15 +12,15 @@ import (
 	"time"
 )
 
-const MaxThreadsByToken = 10
+const MaxThreadsByToken = 5
 
-// RequireAuth returns a Gin middleware function that checks for a valid JWT token in the request header or cookie, and limits the rate of requests to prevent DDoS attacks.
+// RequireAuth returns a Gin middleware function that checks for a valid JWT token in the request header or cookie, and limits the rate of requests to`prevent DDoS attacks.
 //	- The rate limit is enforced using a token bucket algorithm.
 //	- The rate limit and queue capacity can be adjusted by modifying the constants in the function.
 //	- If the token is invalid or has expired, or if the request cannot be processed due to an error, the middleware function aborts the request with a 401 Unauthorized HTTP status code.
 func RequireAuth() gin.HandlerFunc {
 	// Create a new rate limiter to limit the number of requests per second
-	limiter := rate.NewLimiter(1000, MaxThreadsByToken)
+	limiter := rate.NewLimiter(20000, MaxThreadsByToken)
 
 	return func(c *gin.Context) {
 		// Check if the request has exceeded the rate limit
