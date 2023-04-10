@@ -72,15 +72,8 @@ func connectDB() *gorm.DB {
 		return nil
 	}
 
-	//create table users
-	err = db.AutoMigrate(&models.User{})
-	if err != nil {
-		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
-		return nil
-	}
-
-	//create table name_type
-	err = db.AutoMigrate(&models.NameType{})
+	//migrate tables
+	err = db.AutoMigrate(&models.User{}, &models.NameType{}, &models.Log{})
 	if err != nil {
 		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
 		return nil

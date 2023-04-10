@@ -7,18 +7,16 @@ import (
 	"golang.org/x/time/rate"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 )
 
 const MaxThreadsByToken = 5
 
-// RequireAuth returns a Gin middleware function that checks for a valid JWT token in the request header or cookie, and limits the rate of requests to`prevent DDoS attacks.
+// ValidateAuth returns a Gin middleware function that checks for a valid JWT token in the request header or cookie, and limits the rate of requests to`prevent DDoS attacks.
 //	- The rate limit is enforced using a token bucket algorithm.
 //	- The rate limit and queue capacity can be adjusted by modifying the constants in the function.
 //	- If the token is invalid or has expired, or if the request cannot be processed due to an error, the middleware function aborts the request with a 401 Unauthorized HTTP status code.
-func RequireAuth() gin.HandlerFunc {
+func ValidateAuth() gin.HandlerFunc {
 	// Create a new rate limiter to limit the number of requests per second
 	limiter := rate.NewLimiter(20000, MaxThreadsByToken)
 
@@ -67,45 +65,5 @@ func RequireAuth() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-	}
-}
-
-// ValidateIDParam validates id param. It must contain only numbers
-func ValidateIDParam() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Try to parse the ":id" parameter as an integer
-		if _, err := strconv.Atoi(c.Param("id")); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Invalid ':id' parameter: '%s' is not a valid integer", c.Param("id")),
-			})
-			return
-		}
-		c.Next()
-	}
-}
-
-//ValidateNameParam validates :name param. It must not contain numbers or spaces
-func ValidateNameParam() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// Try to retrieve the ":name" parameter from the request context
-		name := c.Param("name")
-
-		// Check if the name contains whitespace
-		if strings.Contains(name, " ") {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Invalid ':name' parameter: '%s' should contain a single word with no spaces", name),
-			})
-			return
-		}
-
-		// Check if the name contains any numbers
-		if _, err := strconv.Atoi(name); err == nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Invalid ':name' parameter: '%s' should not contain any numbers", name),
-			})
-			return
-		}
-
-		c.Next()
 	}
 }

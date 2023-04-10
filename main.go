@@ -1,17 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"github.com/Darklabel91/API_Names/database"
 	"github.com/Darklabel91/API_Names/routes"
 )
 
 func main() {
-	r := database.InitDB()
-	if r == nil {
+	//set database
+	db := database.InitDB()
+	if db == nil {
 		return
 	}
 
-	fmt.Println("-	Listening and serving")
+	//handle requests
 	routes.HandleRequests()
 }

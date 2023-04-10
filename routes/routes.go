@@ -6,11 +6,16 @@ import (
 	"github.com/Darklabel91/API_Names/middleware"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
-	"sync"
+	"gorm.io/gorm"
+	"os"
+	"time"
 )
 
 const DOOR = ":8080"
-const FILENAME = "logs.txt"
+const FILENAME = "Logs.txt"
+const MINUTES = 1
+
+var nameTypesCache []models.NameType
 
 func HandleRequests() {
 	gin.SetMode(gin.ReleaseMode)
@@ -23,82 +28,70 @@ func HandleRequests() {
 	}
 
 	// Create a file to store the logs
-	r.Use(controllers.SetLogger(FILENAME))
+	file, err := os.OpenFile(FILENAME, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return
+	}
+	r.Use(gin.LoggerWithWriter(file))
+
+	//upload the log file every given number of minutes
+	var log models.Log
+	ticker := time.NewTicker(MINUTES * time.Minute)
+	defer ticker.Stop()
+	uploadLog(log, database.DB, ticker, FILENAME)
 
 	//set up routes
 	r.POST("/signup", controllers.Signup)
 	r.POST("/login", controllers.Login)
 
 	//define middleware that validate token
-	r.Use(middleware.RequireAuth())
+	r.Use(middleware.ValidateAuth())
 
 	//set up caching middleware for GET requests
-	r.GET("/:id", middleware.ValidateIDParam(), waitGroupID)
-	r.DELETE("/:id", middleware.ValidateIDParam(), controllers.DeleteName)
-	r.PATCH("/:id", middleware.ValidateIDParam(), controllers.UpdateName)
-	r.POST("/name", controllers.CreateName)
-	r.GET("/name/:name", middleware.ValidateNameParam(), waitGroupName)
-	r.GET("/metaphone/:name", middleware.ValidateNameParam(), preloadNameTypes(), waitGroupMetaphone)
+	r.DELETE("/:id", middleware.ValidateID(), controllers.DeleteName)
+	r.PATCH("/:id", middleware.ValidateID(), controllers.UpdateName)
+	r.POST("/name", middleware.ValidateNameJSON(), controllers.CreateName)
+	r.GET("/:id", middleware.ValidateID(), controllers.GetID)
+	r.GET("/name/:name", middleware.ValidateName(), controllers.GetName)
+	r.GET("/metaphone/:name", middleware.ValidateName(), cachingNameTypes(), controllers.GetSimilarNames)
 
 	// run
 	err = r.Run(DOOR)
 	if err != nil {
 		return
 	}
-
 }
 
-//waitGroupMetaphone crates a waiting group for handling requests using controllers.SearchSimilarNames
-func waitGroupMetaphone(c *gin.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Handle the request in a separate goroutine
+//uploadLog the logger
+func uploadLog(log models.Log, db *gorm.DB, ticker *time.Ticker, fileName string) {
 	go func() {
-		defer wg.Done()
-		controllers.SearchSimilarNames(c)
-	}()
+		for {
+			select {
+			case <-ticker.C:
+				err := log.Upload(db, fileName)
+				if err != nil {
+					panic(err)
+				}
 
-	wg.Wait()
+			}
+		}
+	}()
 }
 
-//waitGroupName crates a waiting group for handling requests using controllers.GetName
-func waitGroupName(c *gin.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
+//cachingNameTypes for better response time we load all records of the table
+func cachingNameTypes() gin.HandlerFunc {
+	if nameTypesCache == nil {
+		var nameTypes []models.NameType
+		nameTypesCache = nameTypes
 
-	// Handle the request in a separate goroutine
-	go func() {
-		defer wg.Done()
-		controllers.GetName(c)
-	}()
+		if err := database.DB.Find(&nameTypes).Error; err != nil {
+			return nil
+		}
 
-	wg.Wait()
-}
-
-// waitGroupID  crates a waiting group for handling requests using controllers.GetID
-func waitGroupID(c *gin.Context) {
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Handle the request in a separate goroutine
-	go func() {
-		defer wg.Done()
-		controllers.GetID(c)
-	}()
-
-	wg.Wait()
-}
-
-//preloadNameTypes for better response time we load all records of the table
-func preloadNameTypes() gin.HandlerFunc {
-	var nameTypes []models.NameType
-	if err := database.DB.Find(&nameTypes).Error; err != nil {
-		return nil
 	}
 
 	return func(c *gin.Context) {
-		c.Set("nameTypes", nameTypes)
+		c.Set("nameTypes", nameTypesCache)
 		c.Next()
 	}
 }
