@@ -2,6 +2,14 @@
 
 The API_Names project is designed to find a name and its possible variations from a given name, and correct any misspellings. It uses the Metaphone (br) algorithm to search the database and the Levenshtein distance method for correction.
 
+## Features
+- JWT Authenticantion
+- Limited access by Token
+- Signin 
+- Login
+- log local and imported to  the database from time to time
+- middlewares 
+
 ## How to Run
 
 Before running the API, make sure you have MySQL installed on your machine. Then, create a .env file and set the following environment variables:
