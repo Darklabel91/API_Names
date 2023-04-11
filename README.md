@@ -84,6 +84,11 @@ Return:
 }
 ```
 Return: ```status 200```
+```json
+{
+    "Message": "Login successful"
+}
+```
 
 - GET - ```http://localhost:8080/3```
 ```json
@@ -116,53 +121,14 @@ Return: ```status 200```
 - GET - ```http://localhost:8080/metaphone/haron```
 ```json
 {
-  "ID": 3,
-  "CreatedAt": "0001-01-01T00:00:00Z",
-  "UpdatedAt": "0001-01-01T00:00:00Z",
-  "DeletedAt": null,
-  "Name": "ARON",
-  "Classification": "M",
-  "Metaphone": "ARM",
-  "NameVariations": [
-    "ARON",
-    "AARON",
-    "AHARON",
-    "AROM",
-    "ARYON",
-    "HARON",
-    "HARNON",
-    "AIROM",
-    "AIRON",
-    "AIRYON",
-    "AYRON",
-    "HAIRON",
-    "HAYRON",
-    "IARON",
-    "YARON",
-    "ARLON",
-    "ARILON",
-    "ARLOM",
-    "HARLON",
-    "ARION",
-    "ARNON",
-    "ARNOM",
-    "ARONE",
-    "ARONI",
-    "ARONY",
-    "ARTON",
-    "JARON",
-    "JAROM",
-    "KARON",
-    "CARON",
-    "MARON",
-    "MAROM",
-    "MARRON",
-    "MARYON",
-    "NARON",
-    "RARON",
-    "SARON",
-    "SAROM"
-  ]
+    "ID": 0,
+    "CreatedAt": "0001-01-01T00:00:00Z",
+    "UpdatedAt": "0001-01-01T00:00:00Z",
+    "DeletedAt": null,
+    "Name": "ARON",
+    "Classification": "M",
+    "Metaphone": "ARM",
+    "NameVariations": "ARON | AROM | AARON | ARYON | HARON | AHARON | "
 }
 ```
 ## Dependencies
