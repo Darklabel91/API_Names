@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"github.com/Darklabel91/API_Names/database"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -81,26 +80,29 @@ func GetName(c *gin.Context) {
 
 //GetMetaphoneMatch read name by metaphone
 func GetMetaphoneMatch(c *gin.Context) {
+	var nameType models.NameType
+
 	//Check the cache
 	var preloadTable []models.NameType
 	cache, existKey := c.Get("nameTypes")
 	if existKey {
 		preloadTable = cache.([]models.NameType)
 	} else {
-		if err := database.DB.Find(&preloadTable).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to preload nameTypes"})
+		allNames, err := nameType.GetAllNames()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
 			return
 		}
+		preloadTable = allNames
 	}
 
 	//name to be searched
 	name := c.Params.ByName("name")
 
 	//search similar names
-	var nameType models.NameType
 	canonicalEntity, err := nameType.GetSimilarMatch(name, preloadTable)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Message": err})
+		c.JSON(http.StatusNotFound, gin.H{"Message": "Couldn't find canonical entity"})
 		return
 	}
 

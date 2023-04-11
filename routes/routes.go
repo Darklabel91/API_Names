@@ -5,13 +5,14 @@ import (
 	"github.com/Darklabel91/API_Names/middlewares"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
+	"net/http"
 	"os"
 	"time"
 )
 
 const DOOR = ":8080"
 const FILENAME = "Logs.txt"
-const SECONDS = 10
+const MICROSECONDS = 300
 
 var nameTypesCache []models.NameType
 
@@ -34,7 +35,7 @@ func HandleRequests() {
 
 	//upload the log file from time to time
 	var log models.Log
-	ticker := time.NewTicker(SECONDS * time.Second)
+	ticker := time.NewTicker(MICROSECONDS * time.Microsecond)
 	defer ticker.Stop()
 	log.UploadLog(ticker, FILENAME)
 
@@ -49,16 +50,32 @@ func HandleRequests() {
 	r.POST("/name", middlewares.ValidateName(), middlewares.ValidateNameJSON(), controllers.CreateName)
 	r.GET("/:id", middlewares.ValidateID(), controllers.GetID)
 	r.GET("/name/:name", middlewares.ValidateName(), controllers.GetName)
+	r.GET("/metaphone/:name", middlewares.ValidateName(), cachingNameTypes(nameTypesCache), controllers.GetMetaphoneMatch)
 	r.PATCH("/:id", middlewares.ValidateID(), middlewares.ValidateNameJSON(), controllers.UpdateName)
 	r.DELETE("/:id", middlewares.ValidateID(), controllers.DeleteName)
-
-	//special route to search with metaphone
-	var nameType models.NameType
-	r.GET("/metaphone/:name", middlewares.ValidateName(), nameType.CachingNameTypes(nameTypesCache), controllers.GetMetaphoneMatch)
 
 	// run
 	err = r.Run(DOOR)
 	if err != nil {
 		return
+	}
+}
+
+func cachingNameTypes(nameTypesCache []models.NameType) gin.HandlerFunc {
+	var name models.NameType
+
+	if nameTypesCache == nil {
+		nameTypes, err := name.GetAllNames()
+		if err != nil {
+			return func(c *gin.Context) {
+				c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
+			}
+		}
+		nameTypesCache = nameTypes
+	}
+
+	return func(c *gin.Context) {
+		c.Set("nameTypes", nameTypesCache)
+		c.Next()
 	}
 }

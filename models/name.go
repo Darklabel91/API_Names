@@ -3,9 +3,7 @@ package models
 import (
 	"errors"
 	"github.com/Darklabel91/metaphone-br"
-	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"net/http"
 	"strings"
 )
 
@@ -80,19 +78,19 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 
 	//1- get the exact metaphone match
 	metaphoneNameMatches := n.SearchCacheMetaphone(nameMetaphone, allNames)
-	//case we don't find the exact match of metaphone we search all similar metaphones
+	//case we don't find the exact match of metaphone we search all similar metaphone
 	if len(metaphoneNameMatches) == 0 {
 		//get all similar metaphone code
 		metaphoneNameMatches = n.SearchSimilarMetaphone(nameMetaphone, allNames)
 		if len(metaphoneNameMatches) == 0 {
-			return nil, err
+			return nil, errors.New("no metaphone matches found")
 		}
 	}
 
 	//2- get all similar names by metaphone list
 	similarNames := n.SearchSimilarNames(name, metaphoneNameMatches, LEVENSHTEIN)
 	if len(similarNames) == 0 {
-		return nil, err
+		return nil, errors.New("no similar name matches")
 	}
 	//case similarNames is too small we search for all similar names of all similar names listed so far
 	if len(similarNames) < 5 {
@@ -175,16 +173,25 @@ func (*NameType) SearchSimilarNames(paradigmName string, allNames []NameType, th
 func (*NameType) SearchCanonicalName(paradigmName string, threshold float32, allNames []NameType, matchingMetaphoneNames []NameType, nameVariations []string) (*NameType, error) {
 	n := strings.ToUpper(paradigmName)
 
+	//transform the nameVariations into a string to be returned
+	var rNv string
+	for _, nv := range nameVariations {
+		rNv += nv + " | "
+	}
+
 	//search exact match on matchingMetaphoneNames
 	for _, similarName := range matchingMetaphoneNames {
 		if similarName.Name == n {
+			similarName.NameVariations = rNv
 			return &similarName, nil
 		}
 	}
 
 	//search for similar names on matchingMetaphoneNames
 	for _, similarName := range matchingMetaphoneNames {
-		if metaphone.SimilarityBetweenWords(n, strings.ToUpper(similarName.Name)) >= threshold {
+		sn := strings.ToUpper(similarName.NameVariations)
+		if metaphone.SimilarityBetweenWords(n, sn) >= threshold {
+			similarName.NameVariations = rNv
 			return &similarName, nil
 		}
 	}
@@ -195,6 +202,33 @@ func (*NameType) SearchCanonicalName(paradigmName string, threshold float32, all
 		if sn == n {
 			for _, name := range allNames {
 				if name.Name == n {
+					name.NameVariations = rNv
+					return &name, nil
+				}
+			}
+		}
+	}
+
+	//search for similar names on nameVariations
+	for _, similarName := range nameVariations {
+		sn := strings.ToUpper(similarName)
+		if metaphone.SimilarityBetweenWords(n, sn) >= threshold {
+			for _, name := range allNames {
+				if name.Name == sn {
+					name.NameVariations = rNv
+					return &name, nil
+				}
+			}
+		}
+	}
+
+	//case none are found we establish a return similarity for names 0.1 bellow the original threshold
+	for _, similarName := range nameVariations {
+		sn := strings.ToUpper(similarName)
+		if metaphone.SimilarityBetweenWords(n, sn) >= threshold-0.1 {
+			for _, name := range allNames {
+				if name.Name == sn {
+					name.NameVariations = rNv
 					return &name, nil
 				}
 			}
@@ -202,25 +236,6 @@ func (*NameType) SearchCanonicalName(paradigmName string, threshold float32, all
 	}
 
 	return &NameType{}, errors.New("couldn't find canonical name")
-}
-
-func (*NameType) CachingNameTypes(nameTypesCache []NameType) gin.HandlerFunc {
-	var name NameType
-
-	if nameTypesCache == nil {
-		nameTypes, err := name.GetAllNames()
-		if err != nil {
-			return func(c *gin.Context) {
-				c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
-			}
-		}
-		nameTypesCache = nameTypes
-	}
-
-	return func(c *gin.Context) {
-		c.Set("nameTypes", nameTypesCache)
-		c.Next()
-	}
 }
 
 func (*NameType) SearchCacheName(name string, cache []NameType) (*NameType, bool) {
