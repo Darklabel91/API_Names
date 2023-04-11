@@ -1,46 +1,17 @@
 package database
 
 import (
-	"encoding/csv"
-	"errors"
 	"fmt"
-	"github.com/Darklabel91/API_Names/models"
-	"github.com/Darklabel91/metaphone-br"
 	"github.com/joho/godotenv"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"io"
-	"log"
-	"net"
 	"os"
-	"time"
 )
 
 var DB *gorm.DB
 
-//InitDB set up all database environment
-func InitDB() *gorm.DB {
-	DB = connectDB()
-	if DB == nil {
-		return nil
-	}
-
-	err := createRoot()
-	if err != nil {
-		return nil
-	}
-
-	err = uploadCSVNameTypes()
-	if err != nil {
-		return nil
-	}
-
-	return DB
-}
-
-//connectDB open connection and migrate tables ORM
-func connectDB() *gorm.DB {
+//ConnectDB open connection and migrate tables ORM
+func ConnectDB() *gorm.DB {
 	//load .env file
 	err := godotenv.Load()
 	if err != nil {
@@ -69,13 +40,6 @@ func connectDB() *gorm.DB {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		fmt.Printf("Error connecting to database : error=%v\n", err)
-		return nil
-	}
-
-	//migrate tables
-	err = db.AutoMigrate(&models.User{}, &models.NameType{}, &models.Log{})
-	if err != nil {
-		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
 		return nil
 	}
 
@@ -108,94 +72,4 @@ func createDatabase(host, username, password, dbName string) error {
 	fmt.Println("-	Create Database")
 
 	return nil
-}
-
-//createRoot creates a user directly from the server
-func createRoot() error {
-	var user models.User
-	DB.Raw("select * from users where id = 1").Find(&user)
-
-	if user.ID == 0 {
-		hash, err := bcrypt.GenerateFromPassword([]byte(os.Getenv("SECRET")), 10)
-		if err != nil {
-			return err
-		}
-
-		userRoot := models.User{
-			Email:    "root@root.com",
-			Password: string(hash),
-			IP:       getOutboundIP(),
-		}
-
-		DB.Create(&userRoot)
-
-		fmt.Println("-	Created first user")
-		return nil
-	}
-
-	return nil
-}
-
-//getOutboundIP get preferred outbound ip of the server
-func getOutboundIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return localAddr.IP.String()
-}
-
-//uploadCSVNameTypes
-func uploadCSVNameTypes() error {
-	var name models.NameType
-	DB.Raw("SELECT * FROM name_types WHERE id = 1").Find(&name)
-
-	if name.ID == 0 {
-		start := time.Now()
-		fmt.Println("-	Upload data start")
-
-		filePath := "database/name_types .csv"
-		file, err := os.Open(filePath)
-		if err != nil {
-			return errors.New("Error opening file:" + err.Error())
-
-		}
-		defer file.Close()
-
-		reader := csv.NewReader(file)
-		var rows [][]string
-		for {
-			row, err := reader.Read()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return errors.New("error reading CSV:" + err.Error())
-			}
-			rows = append(rows, row)
-		}
-
-		for i, row := range rows {
-			if i != 0 {
-				nameType := models.NameType{
-					Name:           row[0],
-					Classification: row[1],
-					Metaphone:      metaphone.Pack(row[0]),
-					NameVariations: row[3],
-				}
-				if err = DB.Create(&nameType).Error; err != nil {
-					return errors.New("error creating NameType:" + err.Error())
-				}
-			}
-		}
-
-		fmt.Println("-	Upload data finished", time.Since(start).String())
-		return nil
-	}
-	return nil
-
 }

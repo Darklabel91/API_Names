@@ -1,4 +1,4 @@
-package middleware
+package middlewares
 
 import (
 	"fmt"
@@ -39,7 +39,8 @@ func ValidateName() gin.HandlerFunc {
 func ValidateNameJSON() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var name models.NameType
-		if err := c.ShouldBindJSON(&name); err != nil {
+		err := c.Bind(&name)
+		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid JSON request body"})
 			return
 		}

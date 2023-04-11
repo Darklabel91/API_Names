@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"errors"
-	"github.com/Darklabel91/API_Names/database"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -16,7 +15,7 @@ import (
 //Login verifies cookie session for login
 func Login(c *gin.Context) {
 	// Get the email and password from request body
-	var body models.InputBody
+	var body models.UserInputBody
 
 	if c.Bind(&body) != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
@@ -25,23 +24,21 @@ func Login(c *gin.Context) {
 
 	// Look up requested user
 	var user models.User
-	database.DB.First(&user, "email = ?", body.Email)
-
-	if user.ID == 0 {
+	u, err := user.GetUserByEmail(body.Email)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
 		return
 	}
 
 	// Compare sent-in password with saved user password hash
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
-
+	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(body.Password))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
 		return
 	}
 
 	// Generate JWT token
-	token, err := generateJWTToken(user.ID, 1)
+	token, err := generateJWTToken(u.ID, 1)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Message": "Failed to generate token"})
 		return

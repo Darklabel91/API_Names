@@ -13,6 +13,12 @@ import (
 
 const levenshtein = 0.8
 
+//NameLevenshtein struct for organizing name variations by Levenshtein
+type NameLevenshtein struct {
+	Name        string
+	Levenshtein float32
+}
+
 //GetSimilarNames search for all similar names by metaphone and Levenshtein method
 func GetSimilarNames(c *gin.Context) {
 	var metaphoneNames []models.NameType
@@ -36,25 +42,27 @@ func GetSimilarNames(c *gin.Context) {
 	//search perfect match
 	nameCache, existName := searchCacheName(name, preloadTable)
 	if existName {
-		r := models.MetaphoneR{
-			ID:             nameCache.ID,
+		r := models.NameType{
 			Name:           nameCache.Name,
 			Classification: nameCache.Classification,
 			Metaphone:      nameCache.Metaphone,
-			NameVariations: []string{nameCache.NameVariations},
+			NameVariations: nameCache.NameVariations,
 		}
 		c.JSON(200, r)
 		return
 	} else {
 		//search perfect match on database
-		database.DB.Raw("select * from name_types where name = ?", strings.ToUpper(name)).Find(&nameCache)
+		_, err := nameCache.GetNameByName(strings.ToUpper(name))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Message": "error on getting name", "Error": err})
+			return
+		}
 		if len(metaphoneNames) == 1 {
-			r := models.MetaphoneR{
-				ID:             metaphoneNames[0].ID,
+			r := models.NameType{
 				Name:           metaphoneNames[0].Name,
 				Classification: metaphoneNames[0].Classification,
 				Metaphone:      metaphoneNames[0].Metaphone,
-				NameVariations: []string{metaphoneNames[0].NameVariations},
+				NameVariations: metaphoneNames[0].NameVariations,
 			}
 			c.JSON(200, r)
 			return
@@ -62,9 +70,15 @@ func GetSimilarNames(c *gin.Context) {
 	}
 
 	//search metaphone
+	var nameType models.NameType
 	metaphoneNames, existMetaphone := searchCacheMetaphone(nameMetaphone, preloadTable)
 	if !existMetaphone {
-		database.DB.Raw("select * from name_types where metaphone = ?", nameMetaphone).Find(&metaphoneNames)
+		mtn, err := nameType.GetNameByMetaphone(nameMetaphone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Message": "error on get names by metaphone", "Error": err})
+			return
+		}
+		metaphoneNames = mtn
 	}
 
 	//find all metaphoneNames matching metaphone
@@ -105,14 +119,17 @@ func GetSimilarNames(c *gin.Context) {
 		return
 	}
 
-	//return
-	r := models.MetaphoneR{
-		ID:             canonicalEntity.ID,
+	var nv string
+	for _, variation := range nameV {
+		nv += variation + " | "
+	}
+	r := models.NameType{
 		Name:           canonicalEntity.Name,
 		Classification: canonicalEntity.Classification,
 		Metaphone:      canonicalEntity.Metaphone,
-		NameVariations: nameV,
+		NameVariations: nv,
 	}
+
 	c.JSON(200, r)
 	return
 }
@@ -182,8 +199,12 @@ func findCanonical(name string, matchingMetaphoneNames []models.NameType, nameVa
 	for _, similarName := range nameVariations {
 		sn := strings.ToUpper(similarName)
 		if sn == n {
-			database.DB.Raw("select * from name_types where name = ?", sn).Find(&canonicalEntity)
-			if canonicalEntity.ID != 0 {
+			ce, err := canonicalEntity.GetNameByName(sn)
+			if err != nil {
+				return models.NameType{}, err
+			}
+
+			if ce.ID != 0 {
 				return canonicalEntity, nil
 			}
 		}
@@ -191,17 +212,21 @@ func findCanonical(name string, matchingMetaphoneNames []models.NameType, nameVa
 
 	//in case of failure on other attempts, we search every nameVariations directly on database
 	for _, similarName := range nameVariations {
-		database.DB.Raw("select * from name_types where name = ?", strings.ToUpper(similarName)).Find(&canonicalEntity)
-		if canonicalEntity.ID != 0 {
-			return canonicalEntity, nil
+		ce, err := canonicalEntity.GetNameByName(strings.ToUpper(similarName))
+		if err != nil {
+			return models.NameType{}, err
+		}
+
+		if ce.ID != 0 {
+			return models.NameType{Name: ce.Name, Classification: ce.Classification, Metaphone: ce.Metaphone, NameVariations: ce.NameVariations}, nil
 		}
 	}
 
 	return models.NameType{}, errors.New("couldn't find canonical name")
 }
 
-//findNames return []models.NameLevenshtein with all similar names of searched string. For recall purpose we reduce the threshold given in 0.1 in case of empty return
-func findNames(names []models.NameType, name string, threshold float32) []models.NameLevenshtein {
+//findNames return []NameLevenshtein with all similar names of searched string. For recall purpose we reduce the threshold given in 0.1 in case of empty return
+func findNames(names []models.NameType, name string, threshold float32) []NameLevenshtein {
 	similarNames := findSimilarNames(name, names, threshold)
 	//reduce the threshold given in 0.1 and search again
 	if len(similarNames) == 0 {
@@ -212,17 +237,17 @@ func findNames(names []models.NameType, name string, threshold float32) []models
 }
 
 //findSimilarNames loop for all names given checking the similarity between words by a given threshold, called on findNames
-func findSimilarNames(name string, names []models.NameType, threshold float32) []models.NameLevenshtein {
-	var similarNames []models.NameLevenshtein
+func findSimilarNames(name string, names []models.NameType, threshold float32) []NameLevenshtein {
+	var similarNames []NameLevenshtein
 
 	for _, n := range names {
 		similarity := metaphone.SimilarityBetweenWords(strings.ToLower(name), strings.ToLower(n.Name))
 		if similarity >= threshold {
-			similarNames = append(similarNames, models.NameLevenshtein{Name: n.Name, Levenshtein: similarity})
+			similarNames = append(similarNames, NameLevenshtein{Name: n.Name, Levenshtein: similarity})
 			varWords := strings.Split(n.NameVariations, "|")
 			for _, vw := range varWords {
 				if vw != "" {
-					similarNames = append(similarNames, models.NameLevenshtein{Name: vw, Levenshtein: similarity})
+					similarNames = append(similarNames, NameLevenshtein{Name: vw, Levenshtein: similarity})
 				}
 			}
 		}
@@ -232,9 +257,9 @@ func findSimilarNames(name string, names []models.NameType, threshold float32) [
 }
 
 //orderByLevenshtein used to sort an array by Levenshtein and len of the name
-func orderByLevenshtein(arr []models.NameLevenshtein) []string {
+func orderByLevenshtein(arr []NameLevenshtein) []string {
 	// creates copy of original array
-	sortedArr := make([]models.NameLevenshtein, len(arr))
+	sortedArr := make([]NameLevenshtein, len(arr))
 	copy(sortedArr, arr)
 
 	// order by func

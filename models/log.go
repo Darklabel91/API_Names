@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 )
 
 type Log struct {
@@ -21,7 +22,23 @@ type Log struct {
 	Path    string
 }
 
-func (*Log) Upload(db *gorm.DB, fileName string) error {
+//UploadLog upload the .txt file every time ticker is called
+func (l *Log) UploadLog(ticker *time.Ticker, fileName string) {
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				err := l.Upload(fileName)
+				if err != nil {
+					panic(err)
+				}
+
+			}
+		}
+	}()
+}
+
+func (*Log) Upload(fileName string) error {
 	file, err := os.OpenFile(fileName, os.O_RDWR, 0666)
 	if err != nil {
 		return err
@@ -66,7 +83,7 @@ func (*Log) Upload(db *gorm.DB, fileName string) error {
 
 	//save the document to the database
 	if len(logs) != 0 {
-		err = db.Create(&logs).Error
+		err = DB.Create(&logs).Error
 		if err != nil {
 			return err
 		}
@@ -86,11 +103,13 @@ func (*Log) Upload(db *gorm.DB, fileName string) error {
 func breakLog(logLine string) (Log, error) {
 	split1 := strings.Split(logLine, "|")
 	if len(split1) != 5 {
+		println(logLine)
 		return Log{}, errors.New("unexpected length on first splitting")
 	}
 
 	split2 := strings.Split(split1[4], " ")
-	if len(split2) < 7 {
+	if len(split2) < 5 {
+		println(logLine)
 		fmt.Println(len(split2))
 		return Log{}, errors.New("unexpected length on second splitting")
 	}
