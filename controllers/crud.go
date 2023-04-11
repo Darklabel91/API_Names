@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 //CreateName create new name on database of type NameType
@@ -25,6 +26,17 @@ func CreateName(c *gin.Context) {
 		return
 	}
 
+	//Check the cache
+	preloadTable := checkCache(c)
+
+	//Check if there's an exact name on the database
+	for _, name := range preloadTable {
+		if name.Name == input.Name {
+			c.JSON(http.StatusBadRequest, gin.H{"Message": " Duplicate entry " + name.Name})
+			return
+		}
+	}
+
 	//create name
 	n, err := input.CreateName()
 	if err != nil {
@@ -32,7 +44,9 @@ func CreateName(c *gin.Context) {
 		return
 	}
 
+	clearCache(c)
 	c.JSON(http.StatusOK, n)
+	return
 }
 
 //GetID read name by id
@@ -82,32 +96,21 @@ func GetName(c *gin.Context) {
 func GetMetaphoneMatch(c *gin.Context) {
 	var nameType models.NameType
 
-	//Check the cache
-	var preloadTable []models.NameType
-	cache, existKey := c.Get("nameTypes")
-	if existKey {
-		preloadTable = cache.([]models.NameType)
-	} else {
-		allNames, err := nameType.GetAllNames()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
-			return
-		}
-		preloadTable = allNames
-	}
-
 	//name to be searched
 	name := c.Params.ByName("name")
+
+	//Check the cache
+	preloadTable := checkCache(c)
 
 	//search similar names
 	canonicalEntity, err := nameType.GetSimilarMatch(name, preloadTable)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Message": "Couldn't find canonical entity"})
 		return
+	} else {
+		c.JSON(200, canonicalEntity)
+		return
 	}
-
-	c.JSON(200, canonicalEntity)
-	return
 }
 
 //UpdateName update name by id
@@ -151,22 +154,30 @@ func UpdateName(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Every item on json is the same on the database id " + param})
 		return
 	} else {
-		if input.Name != "" {
+		if input.Name != "" && input.Name == name.Name {
 			name.Name = input.Name
 		}
-		if input.Classification != "" {
+		if input.Classification != "" && input.Classification == name.Classification {
 			name.Classification = input.Classification
 		}
-		if input.Metaphone != "" {
+		if input.Metaphone != "" && input.Metaphone == name.Metaphone {
 			name.Metaphone = input.Metaphone
 		}
-		if input.NameVariations != "" {
+		if input.NameVariations != "" && input.NameVariations == name.NameVariations {
 			name.NameVariations = input.NameVariations
 		}
 
-		db.Save(name)
+		r := db.Save(name)
+		if r.Error != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"Error": r.Error})
+			return
+		}
+
 		c.JSON(http.StatusOK, name)
+		clearCache(c)
+		return
 	}
+
 }
 
 //DeleteName delete name off database by id
@@ -197,4 +208,35 @@ func DeleteName(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"Delete": "id " + param + " was deleted"})
+	clearCache(c)
+	return
+}
+
+func checkCache(c *gin.Context) []models.NameType {
+	var nameType models.NameType
+	var preloadTable []models.NameType
+
+	cache, existKey := c.Get("nameTypes")
+	if existKey {
+		preloadTable = cache.([]models.NameType)
+	} else {
+		allNames, err := nameType.GetAllNames()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
+			return nil
+		}
+		preloadTable = allNames
+		c.Set("nameTypes", preloadTable)
+	}
+
+	return preloadTable
+}
+
+func clearCache(c *gin.Context) {
+	cache, exist := c.Get("nameTypes")
+	if exist {
+		if cm, ok := cache.(sync.Map); ok {
+			cm.Delete("preloadTable")
+		}
+	}
 }

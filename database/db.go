@@ -43,15 +43,23 @@ func ConnectDB() *gorm.DB {
 
 	dsn := DbUsername + ":" + DbPassword + "@tcp" + "(" + DbHost + ":" + DbPort + ")/" + DbName + "?" + "parseTime=true&loc=Local"
 
-	err = uploadCSVNameTypes(dsn)
-	if err != nil {
-		fmt.Printf("Error uploading .csv to database : error=%v\n", err)
-		return nil
-	}
-
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		fmt.Printf("Error connecting to database : error=%v\n", err)
+		return nil
+	}
+
+	err = db.AutoMigrate(models.NameType{}, models.User{}, models.Log{})
+	if err != nil {
+		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
+		return nil
+	}
+
+	DB = db
+
+	err = uploadCSVNameTypes()
+	if err != nil {
+		fmt.Printf("Error uploading .csv to database : error=%v\n", err)
 		return nil
 	}
 
@@ -87,15 +95,9 @@ func createDatabase(host, username, password, dbName string) error {
 }
 
 //UploadCSVNameTypes upload the .csv file on database folder on names table
-func uploadCSVNameTypes(dsn string) error {
-	// Open a connection to the MySQL server
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	if err != nil {
-		return fmt.Errorf("failed to connect to MySQL: %v", err)
-	}
-
+func uploadCSVNameTypes() error {
 	var name models.NameType
-	db.Raw("select * from name_types where id = 1").Find(&name)
+	DB.Raw("select * from name_types where id = 1").Find(&name)
 
 	if name.ID == 0 {
 		start := time.Now()

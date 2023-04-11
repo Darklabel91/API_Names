@@ -9,15 +9,13 @@ import (
 
 func init() {
 	db := database.ConnectDB()
-	models.DB = db
-
-	err := db.AutoMigrate(models.NameType{}, models.User{}, models.Log{})
-	if err != nil {
-		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
+	if db.Error != nil {
+		fmt.Printf("Error on connecting to the database : error=%v\n", db.Error)
 		return
 	}
+	models.DB = db
 
-	err = models.CreateRoot()
+	err := models.CreateRoot()
 	if err != nil {
 		fmt.Printf("Error on creating  root user on database: error=%v\n", err)
 		return

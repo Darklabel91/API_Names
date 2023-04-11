@@ -29,7 +29,7 @@ func (n *NameType) CreateName() (*NameType, error) {
 
 func (*NameType) GetAllNames() ([]NameType, error) {
 	var Names []NameType
-	r := DB.Raw("select * from name_types").Find(&Names)
+	r := DB.Raw("select * from name_types where name_types.deleted_at is null").Find(&Names)
 	if r.Error != nil {
 		return nil, r.Error
 	}
@@ -38,7 +38,7 @@ func (*NameType) GetAllNames() ([]NameType, error) {
 
 func (*NameType) GetNameById(id int) (*NameType, *gorm.DB, error) {
 	var getName NameType
-	data := DB.Raw("select * from name_types where id = ?", id).Find(&getName)
+	data := DB.Raw("select * from name_types where id = ? AND name_types.deleted_at is null", id).Find(&getName)
 	if data.Error != nil {
 		return nil, nil, data.Error
 	}
@@ -47,7 +47,7 @@ func (*NameType) GetNameById(id int) (*NameType, *gorm.DB, error) {
 
 func (*NameType) GetNameByName(name string) (*NameType, error) {
 	var getName NameType
-	data := DB.Raw("select * from name_types where name = ?", name).Find(&getName)
+	data := DB.Raw("select * from name_types where name = ? AND name_types.deleted_at is null", name).Find(&getName)
 	if data.Error != nil {
 		return nil, data.Error
 	}
@@ -56,7 +56,7 @@ func (*NameType) GetNameByName(name string) (*NameType, error) {
 
 func (*NameType) GetNameByMetaphone(mtf string) ([]NameType, error) {
 	var getNames []NameType
-	data := DB.Raw("select * from name_types where metaphone = ?", mtf).Find(&getNames)
+	data := DB.Raw("select * from name_types where metaphone = ? AND name_types.deleted_at is null", mtf).Find(&getNames)
 	if data.Error != nil {
 		return nil, data.Error
 	}
@@ -116,7 +116,7 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 
 func (*NameType) DeleteNameById(id int) (NameType, error) {
 	var getName NameType
-	r := DB.Raw("select * from name_types where id = ?", id).Find(&getName)
+	r := DB.Where("id = ?", id).Delete(&getName)
 	if r.Error != nil {
 		return NameType{}, r.Error
 	}

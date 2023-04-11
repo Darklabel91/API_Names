@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -45,12 +46,14 @@ func HandleRequests() {
 
 	//main middleware validation
 	r.Use(middlewares.ValidateAuth())
+	cache := &sync.Map{}
+	r.Use(cachingNameTypes(cache))
 
 	//CRUD routes
 	r.POST("/name", middlewares.ValidateName(), middlewares.ValidateNameJSON(), controllers.CreateName)
 	r.GET("/:id", middlewares.ValidateID(), controllers.GetID)
 	r.GET("/name/:name", middlewares.ValidateName(), controllers.GetName)
-	r.GET("/metaphone/:name", middlewares.ValidateName(), cachingNameTypes(nameTypesCache), controllers.GetMetaphoneMatch)
+	r.GET("/metaphone/:name", middlewares.ValidateName(), controllers.GetMetaphoneMatch)
 	r.PATCH("/:id", middlewares.ValidateID(), middlewares.ValidateNameJSON(), controllers.UpdateName)
 	r.DELETE("/:id", middlewares.ValidateID(), controllers.DeleteName)
 
@@ -61,21 +64,22 @@ func HandleRequests() {
 	}
 }
 
-func cachingNameTypes(nameTypesCache []models.NameType) gin.HandlerFunc {
-	var name models.NameType
-
-	if nameTypesCache == nil {
-		nameTypes, err := name.GetAllNames()
-		if err != nil {
-			return func(c *gin.Context) {
-				c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
-			}
-		}
-		nameTypesCache = nameTypes
-	}
-
+func cachingNameTypes(cache *sync.Map) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Set("nameTypes", nameTypesCache)
+		//Check the cache
+		cacheData, existKey := cache.Load("nameTypes")
+		if existKey {
+			c.Set("nameTypes", cacheData)
+		} else {
+			var nameType models.NameType
+			allNames, err := nameType.GetAllNames()
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
+				return
+			}
+			cache.Store("nameTypes", allNames)
+			c.Set("nameTypes", allNames)
+		}
 		c.Next()
 	}
 }
