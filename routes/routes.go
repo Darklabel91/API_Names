@@ -5,7 +5,6 @@ import (
 	"github.com/Darklabel91/API_Names/middlewares"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
-	"net/http"
 	"os"
 	"time"
 )
@@ -33,7 +32,7 @@ func HandleRequests() {
 	}
 	r.Use(gin.LoggerWithWriter(file))
 
-	//upload the log file every given number of minutes
+	//upload the log file from time to time
 	var log models.Log
 	ticker := time.NewTicker(SECONDS * time.Second)
 	defer ticker.Stop()
@@ -54,31 +53,12 @@ func HandleRequests() {
 	r.DELETE("/:id", middlewares.ValidateID(), controllers.DeleteName)
 
 	//special route to search with metaphone
-	r.GET("/metaphone/:name", middlewares.ValidateName(), cachingNameTypes(), controllers.GetSimilarNames)
+	var nameType models.NameType
+	r.GET("/metaphone/:name", middlewares.ValidateName(), nameType.CachingNameTypes(nameTypesCache), controllers.GetMetaphoneMatch)
 
 	// run
 	err = r.Run(DOOR)
 	if err != nil {
 		return
-	}
-}
-
-//cachingNameTypes for better response time we load all records of the table
-func cachingNameTypes() gin.HandlerFunc {
-	var name models.NameType
-
-	if nameTypesCache == nil {
-		nameTypes, err := name.GetAllNames()
-		if err != nil {
-			return func(c *gin.Context) {
-				c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
-			}
-		}
-		nameTypesCache = nameTypes
-	}
-
-	return func(c *gin.Context) {
-		c.Set("nameTypes", nameTypesCache)
-		c.Next()
 	}
 }

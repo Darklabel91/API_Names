@@ -17,25 +17,17 @@ func init() {
 		return
 	}
 
-	err = models.UploadCSVNameTypes()
-	if err != nil {
-		fmt.Printf("Error on uploading .csv to database : error=%v\n", err)
-		return
-	}
-
 	err = models.CreateRoot()
 	if err != nil {
 		fmt.Printf("Error on creating  root user on database: error=%v\n", err)
 		return
 	}
 
-	IPs, err := models.TrustedIPs()
+	models.IPs, err = models.TrustedIPs()
 	if err != nil {
 		fmt.Printf("Error on getting the trusted IPs: error=%v\n", err)
 		return
 	}
-
-	models.IPs = IPs
 }
 
 func main() {

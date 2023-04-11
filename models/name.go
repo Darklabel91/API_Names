@@ -1,20 +1,17 @@
 package models
 
 import (
-	"encoding/csv"
 	"errors"
-	"fmt"
 	"github.com/Darklabel91/metaphone-br"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"io"
-	"os"
-	"time"
+	"net/http"
+	"strings"
 )
 
 var DB *gorm.DB
 var IPs []string
 
-//NameType main struct
 type NameType struct {
 	gorm.Model
 	Name           string `gorm:"unique" json:"Name,omitempty"`
@@ -68,6 +65,57 @@ func (*NameType) GetNameByMetaphone(mtf string) ([]NameType, error) {
 	return getNames, nil
 }
 
+func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType, error) {
+	//search perfect match on database
+	perfectMatch, err := n.GetNameByName(strings.ToUpper(name))
+	if err != nil {
+		return nil, err
+	}
+	if perfectMatch.ID != 0 {
+		return perfectMatch, nil
+	}
+
+	//Search by similar match
+	nameMetaphone := metaphone.Pack(name)
+
+	//1- get the exact metaphone match
+	metaphoneNameMatches := n.SearchCacheMetaphone(nameMetaphone, allNames)
+	//case we don't find the exact match of metaphone we search all similar metaphones
+	if len(metaphoneNameMatches) == 0 {
+		//get all similar metaphone code
+		metaphoneNameMatches = n.SearchSimilarMetaphone(nameMetaphone, allNames)
+		if len(metaphoneNameMatches) == 0 {
+			return nil, err
+		}
+	}
+
+	//2- get all similar names by metaphone list
+	similarNames := n.SearchSimilarNames(name, metaphoneNameMatches, LEVENSHTEIN)
+	if len(similarNames) == 0 {
+		return nil, err
+	}
+	//case similarNames is too small we search for all similar names of all similar names listed so far
+	if len(similarNames) < 5 {
+		for _, sn := range similarNames {
+			similar := n.SearchSimilarNames(sn.Name, metaphoneNameMatches, LEVENSHTEIN)
+			similarNames = append(similarNames, similar...)
+		}
+	}
+
+	//3- order all similarNames by LEVENSHTEIN from high to low
+	var nameLevenshtein NameLevenshtein
+	similarNamesOrderedByLevenshtein := nameLevenshtein.OrderByLevenshtein(similarNames)
+
+	//4- return the canonical name combined with similar names ordered by levenshtein
+	canonicalEntity, err := n.SearchCanonicalName(name, LEVENSHTEIN, allNames, metaphoneNameMatches, similarNamesOrderedByLevenshtein)
+	if err != nil {
+		return nil, err
+	}
+
+	return canonicalEntity, nil
+
+}
+
 func (*NameType) DeleteNameById(id int) (NameType, error) {
 	var getName NameType
 	r := DB.Raw("select * from name_types where id = ?", id).Find(&getName)
@@ -77,53 +125,126 @@ func (*NameType) DeleteNameById(id int) (NameType, error) {
 	return getName, nil
 }
 
-//UploadCSVNameTypes upload the .csv file on database folder on names table
-func UploadCSVNameTypes() error {
-	var name NameType
-	DB.Raw("select * from name_types where id = 1").Find(&name)
-
-	if name.ID == 0 {
-		start := time.Now()
-		fmt.Println("-	Upload data start")
-
-		filePath := "database/name_types .csv"
-		file, err := os.Open(filePath)
-		if err != nil {
-			return errors.New("Error opening file:" + err.Error())
-
+func (*NameType) SearchSimilarMetaphone(paradigmMetaphone string, allNames []NameType) []NameType {
+	var returnNames []NameType
+	for _, name := range allNames {
+		if metaphone.IsMetaphoneSimilar(paradigmMetaphone, name.Metaphone) {
+			returnNames = append(returnNames, name)
 		}
-		defer file.Close()
-
-		reader := csv.NewReader(file)
-		var rows [][]string
-		for {
-			row, err := reader.Read()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return errors.New("error reading CSV:" + err.Error())
-			}
-			rows = append(rows, row)
-		}
-
-		for i, row := range rows {
-			if i != 0 {
-				nameType := NameType{
-					Name:           row[0],
-					Classification: row[1],
-					Metaphone:      metaphone.Pack(row[0]),
-					NameVariations: row[3],
-				}
-				if err = DB.Create(&nameType).Error; err != nil {
-					return errors.New("error creating NameType:" + err.Error())
-				}
-			}
-		}
-
-		fmt.Println("-	Upload data finished", time.Since(start).String())
-		return nil
 	}
-	return nil
 
+	return returnNames
+}
+
+func (*NameType) SearchSimilarNames(paradigmName string, allNames []NameType, threshold float32) []NameLevenshtein {
+	var similarNames []NameLevenshtein
+
+	for _, name := range allNames {
+		similarity := metaphone.SimilarityBetweenWords(strings.ToLower(paradigmName), strings.ToLower(name.Name))
+		if similarity >= threshold {
+			similarNames = append(similarNames, NameLevenshtein{Name: name.Name, Levenshtein: similarity})
+			varWords := strings.Split(name.NameVariations, "|")
+			for _, vw := range varWords {
+				if vw != "" {
+					similarNames = append(similarNames, NameLevenshtein{Name: vw, Levenshtein: similarity})
+				}
+			}
+		}
+	}
+
+	//reduce the threshold in 0.1 if noting is found
+	if len(similarNames) == 0 {
+		for _, name := range allNames {
+			similarity := metaphone.SimilarityBetweenWords(strings.ToLower(paradigmName), strings.ToLower(name.Name))
+			if similarity >= threshold-0.1 {
+				similarNames = append(similarNames, NameLevenshtein{Name: name.Name, Levenshtein: similarity})
+				varWords := strings.Split(name.NameVariations, "|")
+				for _, vw := range varWords {
+					if vw != "" {
+						similarNames = append(similarNames, NameLevenshtein{Name: vw, Levenshtein: similarity})
+					}
+				}
+			}
+		}
+		return similarNames
+	}
+
+	return similarNames
+}
+
+func (*NameType) SearchCanonicalName(paradigmName string, threshold float32, allNames []NameType, matchingMetaphoneNames []NameType, nameVariations []string) (*NameType, error) {
+	n := strings.ToUpper(paradigmName)
+
+	//search exact match on matchingMetaphoneNames
+	for _, similarName := range matchingMetaphoneNames {
+		if similarName.Name == n {
+			return &similarName, nil
+		}
+	}
+
+	//search for similar names on matchingMetaphoneNames
+	for _, similarName := range matchingMetaphoneNames {
+		if metaphone.SimilarityBetweenWords(n, strings.ToUpper(similarName.Name)) >= threshold {
+			return &similarName, nil
+		}
+	}
+
+	//search exact match on nameVariations
+	for _, similarName := range nameVariations {
+		sn := strings.ToUpper(similarName)
+		if sn == n {
+			for _, name := range allNames {
+				if name.Name == n {
+					return &name, nil
+				}
+			}
+		}
+	}
+
+	return &NameType{}, errors.New("couldn't find canonical name")
+}
+
+func (*NameType) CachingNameTypes(nameTypesCache []NameType) gin.HandlerFunc {
+	var name NameType
+
+	if nameTypesCache == nil {
+		nameTypes, err := name.GetAllNames()
+		if err != nil {
+			return func(c *gin.Context) {
+				c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
+			}
+		}
+		nameTypesCache = nameTypes
+	}
+
+	return func(c *gin.Context) {
+		c.Set("nameTypes", nameTypesCache)
+		c.Next()
+	}
+}
+
+func (*NameType) SearchCacheName(name string, cache []NameType) (*NameType, bool) {
+	for _, c := range cache {
+		if c.Name == name {
+			return &c, true
+		}
+	}
+
+	return &NameType{}, false
+
+}
+
+func (*NameType) SearchCacheMetaphone(metaphone string, cache []NameType) []NameType {
+	var nameTypes []NameType
+	for _, c := range cache {
+		if c.Metaphone == metaphone {
+			nameTypes = append(nameTypes, c)
+		}
+	}
+
+	if len(nameTypes) != 0 {
+		return nameTypes
+	}
+
+	return nil
 }

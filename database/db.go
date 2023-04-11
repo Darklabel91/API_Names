@@ -1,11 +1,17 @@
 package database
 
 import (
+	"encoding/csv"
+	"errors"
 	"fmt"
+	"github.com/Darklabel91/API_Names/models"
+	"github.com/Darklabel91/metaphone-br"
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"io"
 	"os"
+	"time"
 )
 
 var DB *gorm.DB
@@ -36,6 +42,12 @@ func ConnectDB() *gorm.DB {
 	}
 
 	dsn := DbUsername + ":" + DbPassword + "@tcp" + "(" + DbHost + ":" + DbPort + ")/" + DbName + "?" + "parseTime=true&loc=Local"
+
+	err = uploadCSVNameTypes(dsn)
+	if err != nil {
+		fmt.Printf("Error uploading .csv to database : error=%v\n", err)
+		return nil
+	}
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -72,4 +84,61 @@ func createDatabase(host, username, password, dbName string) error {
 	fmt.Println("-	Create Database")
 
 	return nil
+}
+
+//UploadCSVNameTypes upload the .csv file on database folder on names table
+func uploadCSVNameTypes(dsn string) error {
+	// Open a connection to the MySQL server
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to connect to MySQL: %v", err)
+	}
+
+	var name models.NameType
+	db.Raw("select * from name_types where id = 1").Find(&name)
+
+	if name.ID == 0 {
+		start := time.Now()
+		fmt.Println("-	Upload data start")
+
+		filePath := "database/name_types .csv"
+		file, err := os.Open(filePath)
+		if err != nil {
+			return errors.New("Error opening file:" + err.Error())
+
+		}
+		defer file.Close()
+
+		reader := csv.NewReader(file)
+		var rows [][]string
+		for {
+			row, err := reader.Read()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return errors.New("error reading CSV:" + err.Error())
+			}
+			rows = append(rows, row)
+		}
+
+		for i, row := range rows {
+			if i != 0 {
+				nameType := models.NameType{
+					Name:           row[0],
+					Classification: row[1],
+					Metaphone:      metaphone.Pack(row[0]),
+					NameVariations: row[3],
+				}
+				if err = DB.Create(&nameType).Error; err != nil {
+					return errors.New("error creating NameType:" + err.Error())
+				}
+			}
+		}
+
+		fmt.Println("-	Upload data finished", time.Since(start).String())
+		return nil
+	}
+	return nil
+
 }
