@@ -28,11 +28,11 @@ go run main.go
 on the first run the prompt will return:
 ```
 go run main.go
--       Create Database
--       Created first user
--       Upload data start
--       Upload data finished time_uploading
--       Listening and serving
+2023/04/12 18:48:48 -   Created Database
+2023/04/12 18:48:48 -   Upload data start
+2023/04/12 18:49:21 -   Upload data finished 33.113701109s
+2023/04/12 18:49:21 -   Created first user
+2023/04/12 18:49:21 -   Listening and serving...
 ```
 
 
@@ -67,8 +67,8 @@ Return:
     "Message": "User created",
     "User": {
         "ID": 2,
-        "CreatedAt": "2023-03-28T23:18:23.624-03:00",
-        "UpdatedAt": "2023-03-28T23:18:23.624-03:00",
+        "CreatedAt": "2023-04-12T18:48:48.475-03:00",
+        "UpdatedAt": "2023-04-12T18:48:48.475-03:00",
         "DeletedAt": null,
         "Email": "user@user.com",
         "Password": "$2a$10$crIN3KKScm.HafCl9qQkzeehuK5XUfnGrAxCyymyMPnNHkwDwHBVS"
@@ -94,8 +94,8 @@ Return: ```status 200```
 ```json
 {
   "ID": 3,
-  "CreatedAt": "0001-01-01T00:00:00Z",
-  "UpdatedAt": "0001-01-01T00:00:00Z",
+  "CreatedAt": "2023-04-12T18:48:48.475-03:00",
+  "UpdatedAt": "2023-04-12T18:48:48.475-03:00",
   "DeletedAt": null,
   "Name": "ARON",
   "Classification": "M",
@@ -108,8 +108,8 @@ Return: ```status 200```
 ```json
 {
   "ID": 3,
-  "CreatedAt": "0001-01-01T00:00:00Z",
-  "UpdatedAt": "0001-01-01T00:00:00Z",
+  "CreatedAt": "2023-04-12T18:48:48.475-03:00",
+  "UpdatedAt": "2023-04-12T18:48:48.475-03:00",
   "DeletedAt": null,
   "Name": "ARON",
   "Classification": "M",
@@ -121,9 +121,9 @@ Return: ```status 200```
 - GET - ```http://localhost:8080/metaphone/haron```
 ```json
 {
-    "ID": 0,
-    "CreatedAt": "0001-01-01T00:00:00Z",
-    "UpdatedAt": "0001-01-01T00:00:00Z",
+    "ID": 3,
+    "CreatedAt": "2023-04-12T18:48:48.475-03:00",
+    "UpdatedAt": "2023-04-12T18:48:48.475-03:00",
     "DeletedAt": null,
     "Name": "ARON",
     "Classification": "M",
