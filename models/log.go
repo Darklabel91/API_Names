@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"gorm.io/gorm"
 	"io/ioutil"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 )
 
+// Log is a struct representing a log record
 type Log struct {
 	gorm.Model
 	Time    string
@@ -22,7 +22,8 @@ type Log struct {
 	Path    string
 }
 
-//UploadLog upload the .txt file every time ticker is called
+// UploadLog creates a goroutine that uploads the log file content every time the given ticker is triggered.
+// The fileName parameter is the path to the file that contains the logs.
 func (l *Log) UploadLog(ticker *time.Ticker, fileName string) {
 	go func() {
 		for {
@@ -38,6 +39,8 @@ func (l *Log) UploadLog(ticker *time.Ticker, fileName string) {
 	}()
 }
 
+// Upload reads the log file, replaces null bytes with empty strings, then saves the logs to the database.
+// The fileName parameter is the path to the file that contains the logs.
 func (*Log) Upload(fileName string) error {
 	file, err := os.OpenFile(fileName, os.O_RDWR, 0666)
 	if err != nil {
@@ -100,17 +103,15 @@ func (*Log) Upload(fileName string) error {
 	return errors.New("upload scanner return was 0")
 }
 
+// breakLog parses a log line and returns a Log struct containing the relevant information.
 func breakLog(logLine string) (Log, error) {
 	split1 := strings.Split(logLine, "|")
 	if len(split1) != 5 {
-		println(logLine)
 		return Log{}, errors.New("unexpected length on first splitting")
 	}
 
 	split2 := strings.Split(split1[4], " ")
 	if len(split2) < 5 {
-		println(logLine)
-		fmt.Println(len(split2))
 		return Log{}, errors.New("unexpected length on second splitting")
 	}
 
@@ -122,5 +123,4 @@ func breakLog(logLine string) (Log, error) {
 		Method:  strings.TrimSpace(split2[1]),
 		Path:    strings.TrimSpace(split2[len(split2)-1]),
 	}, nil
-
 }

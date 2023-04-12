@@ -2,43 +2,40 @@ package middlewares
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/time/rate"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/time/rate"
 )
 
-const MaxThreadsByToken = 5
+const (
+	TokenHeader = "Token"
+	TokenCookie = "token"
+)
 
-// ValidateAuth returns a Gin middlewares function that checks for a valid JWT token in the request header or cookie, and limits the rate of requests to`prevent DDoS attacks.
-//	- The rate limit is enforced using a token bucket algorithm.
-//	- The rate limit and queue capacity can be adjusted by modifying the constants in the function.
-//	- If the token is invalid or has expired, or if the request cannot be processed due to an error, the middlewares function aborts the request with a 401 Unauthorized HTTP status code.
+const (
+	MaxRequestsPerSecond = 5000
+	MaxThreadsByToken    = 4
+)
+
+// ValidateAuth returns a Gin middleware function that checks for a valid JWT token in the request header or cookie, and aborts the request with a 401 Unauthorized HTTP status code if the token is invalid or has expired.
 func ValidateAuth() gin.HandlerFunc {
-	// Create a new rate limiter to limit the number of requests per second
-	limiter := rate.NewLimiter(20000, MaxThreadsByToken)
-
+	// Decode/validate the token
 	return func(c *gin.Context) {
-		// Check if the request has exceeded the rate limit
-		if !limiter.Allow() {
-			c.AbortWithStatus(http.StatusTooManyRequests)
-			return
-		}
-
 		// Get the token from the header or cookie
-		tokenString := c.GetHeader("Token")
-		var err error
+		tokenString := c.GetHeader(TokenHeader)
 		if tokenString == "" {
-			tokenString, err = c.Cookie("token")
+			var err error
+			tokenString, err = c.Cookie(TokenCookie)
 			if err != nil {
 				c.AbortWithStatus(http.StatusUnauthorized)
 				return
 			}
 		}
 
-		// Decode/validate the token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -65,5 +62,23 @@ func ValidateAuth() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+	}
+}
+
+// RateLimit returns a Gin middleware function that limits the rate of requests to prevent DDoS attacks.
+// The rate limit is enforced using a token bucket algorithm.
+func RateLimit() gin.HandlerFunc {
+	// Create a new rate limiter to limit the number of requests per second
+	limiter := rate.NewLimiter(MaxRequestsPerSecond, MaxThreadsByToken)
+
+	return func(c *gin.Context) {
+		// Check if the request has exceeded the rate limit
+		if !limiter.Allow() {
+			c.AbortWithStatus(http.StatusTooManyRequests)
+			return
+		}
+
+		// Continue
+		c.Next()
 	}
 }

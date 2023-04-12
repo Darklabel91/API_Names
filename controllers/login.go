@@ -2,27 +2,27 @@ package controllers
 
 import (
 	"errors"
-	"github.com/Darklabel91/API_Names/models"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/Darklabel91/API_Names/models"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
+	"golang.org/x/crypto/bcrypt"
 )
 
-//Login verifies cookie session for login
+// Login verifies email and password and sets a JWT token as a cookie for authentication
 func Login(c *gin.Context) {
-	// Get the email and password from request body
+	// Get email and password from request body
 	var body models.UserInputBody
-
-	if c.Bind(&body) != nil {
+	if err := c.Bind(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
 		return
 	}
 
-	// Look up requested user
+	// Look up user by email
 	var user models.User
 	u, err := user.GetUserByEmail(body.Email)
 	if err != nil {
@@ -30,22 +30,21 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// Compare sent-in password with saved user password hash
-	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(body.Password))
-	if err != nil {
+	// Compare password from request body with user's hashed password
+	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(body.Password)); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
 		return
 	}
 
 	// Generate JWT token
-	token, err := generateJWTToken(u.ID, 1)
+	token, err := generateJWTToken(u.ID, 1*time.Hour*24)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Message": "Failed to generate token"})
 		return
 	}
 
 	// Set token as a cookie
-	c.SetCookie("token", token, 60*60, "/", "", false, true)
+	c.SetCookie("token", token, int(1*time.Hour.Seconds()), "/", "", false, true)
 
 	// Return success response
 	c.JSON(http.StatusOK, gin.H{"Message": "Login successful"})
@@ -57,10 +56,10 @@ func generateJWTToken(userID uint, amountDays time.Duration) (string, error) {
 	expirationTime := time.Now().Add(amountDays * 24 * time.Hour)
 
 	// Create JWT claims
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(expirationTime),
-		IssuedAt:  jwt.NewNumericDate(time.Now()),
-		Subject:   strconv.Itoa(int(userID)),
+	claims := jwt.MapClaims{
+		"exp": expirationTime.Unix(),
+		"iat": time.Now().Unix(),
+		"sub": strconv.Itoa(int(userID)),
 	}
 
 	// Create token using claims and signing method

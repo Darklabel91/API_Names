@@ -2,7 +2,6 @@ package database
 
 import (
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/Darklabel91/metaphone-br"
@@ -10,63 +9,55 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"io"
+	"log"
 	"os"
 	"time"
 )
 
-var DB *gorm.DB
-
-//ConnectDB open connection and migrate tables ORM
+// ConnectDB opens a connection to the database and migrates tables using ORM
 func ConnectDB() *gorm.DB {
-	//load .env file
+	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println(".env file was not found. You should add a .env file on project root with:\nDB_USERNAME \nDB_PASSWORD \nDB_NAME \nDB_HOST \nDB_PORT \nSECRET")
 		return nil
 	}
 
-	//get .env variables
-	var (
-		DbUsername = os.Getenv("DB_USERNAME")
-		DbPassword = os.Getenv("DB_PASSWORD")
-		DbName     = os.Getenv("DB_NAME")
-		DbHost     = os.Getenv("DB_HOST")
-		DbPort     = os.Getenv("DB_PORT")
-	)
+	// Get environment variables
+	dbUsername := os.Getenv("DB_USERNAME")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
 
-	//create database
-	err = createDatabase(DbHost, DbUsername, DbPassword, DbName)
+	// Create database
+	err = createDatabase(dbHost, dbUsername, dbPassword, dbName)
 	if err != nil {
-		fmt.Printf("Error on gorm creating database : error=%v\n", err)
 		return nil
 	}
 
-	dsn := DbUsername + ":" + DbPassword + "@tcp" + "(" + DbHost + ":" + DbPort + ")/" + DbName + "?" + "parseTime=true&loc=Local"
-
+	// Connect to the database
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=Local", dbUsername, dbPassword, dbHost, dbPort, dbName)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		fmt.Printf("Error connecting to database : error=%v\n", err)
 		return nil
 	}
 
-	err = db.AutoMigrate(models.NameType{}, models.User{}, models.Log{})
+	// Migrate tables
+	err = db.AutoMigrate(&models.NameType{}, &models.User{}, &models.Log{})
 	if err != nil {
-		fmt.Printf("Error on gorm auto migrate to database : error=%v\n", err)
 		return nil
 	}
 
-	DB = db
-
-	err = uploadCSVNameTypes()
+	// Upload CSV data to NameType table
+	err = uploadCSVNameTypes(db)
 	if err != nil {
-		fmt.Printf("Error uploading .csv to database : error=%v\n", err)
 		return nil
 	}
 
 	return db
 }
 
-//createDatabase runs create database script
+// createDatabase runs the create database script
 func createDatabase(host, username, password, dbName string) error {
 	// Set up the MySQL DSN string
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/?charset=utf8mb4&parseTime=True&loc=Local", username, password, host)
@@ -89,25 +80,24 @@ func createDatabase(host, username, password, dbName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create database: %v", err)
 	}
-	fmt.Println("-	Create Database")
+	log.Println("-	Created Database")
 
 	return nil
 }
 
-//UploadCSVNameTypes upload the .csv file on database folder on names table
-func uploadCSVNameTypes() error {
+// uploadCSVNameTypes the specified CSV file to the database as NameType objects.
+func uploadCSVNameTypes(db *gorm.DB) error {
 	var name models.NameType
-	DB.Raw("select * from name_types where id = 1").Find(&name)
+	db.Raw("select * from name_types where id = 1").Find(&name)
 
 	if name.ID == 0 {
 		start := time.Now()
-		fmt.Println("-	Upload data start")
+		log.Println("-	Upload data start")
 
 		filePath := "database/name_types .csv"
 		file, err := os.Open(filePath)
 		if err != nil {
-			return errors.New("Error opening file:" + err.Error())
-
+			return fmt.Errorf("error opening file:: %v", err)
 		}
 		defer file.Close()
 
@@ -119,7 +109,7 @@ func uploadCSVNameTypes() error {
 				break
 			}
 			if err != nil {
-				return errors.New("error reading CSV:" + err.Error())
+				return fmt.Errorf("error reading file:: %v", err)
 			}
 			rows = append(rows, row)
 		}
@@ -132,15 +122,14 @@ func uploadCSVNameTypes() error {
 					Metaphone:      metaphone.Pack(row[0]),
 					NameVariations: row[3],
 				}
-				if err = DB.Create(&nameType).Error; err != nil {
-					return errors.New("error creating NameType:" + err.Error())
+				if err = db.Create(&nameType).Error; err != nil {
+					return fmt.Errorf("error creating NameType:: %v", err)
 				}
 			}
 		}
 
-		fmt.Println("-	Upload data finished", time.Since(start).String())
+		log.Println("-	Upload data finished", time.Since(start).String())
 		return nil
 	}
 	return nil
-
 }

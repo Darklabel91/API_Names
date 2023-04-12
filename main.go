@@ -1,34 +1,38 @@
 package main
 
 import (
-	"fmt"
+	"log"
+
 	"github.com/Darklabel91/API_Names/database"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/Darklabel91/API_Names/routes"
 )
 
 func init() {
+	// Connect to the database.
 	db := database.ConnectDB()
 	if db.Error != nil {
-		fmt.Printf("Error on connecting to the database : error=%v\n", db.Error)
-		return
+		log.Fatalf("Error connecting to the database: %v", db.Error)
 	}
 	models.DB = db
 
-	err := models.CreateRoot()
-	if err != nil {
-		fmt.Printf("Error on creating  root user on database: error=%v\n", err)
-		return
+	// Create the root user.
+	if err := models.CreateRoot(); err != nil {
+		log.Fatalf("Error creating root user: %v", err)
 	}
 
-	models.IPs, err = models.TrustedIPs()
+	// Get the list of trusted IPs from the database.
+	trustedIPs, err := models.TrustedIPs()
 	if err != nil {
-		fmt.Printf("Error on getting the trusted IPs: error=%v\n", err)
-		return
+		log.Fatalf("Error getting trusted IPs: %v", err)
 	}
+
+	// Store the list of trusted IPs in the models package.
+	models.IPs = trustedIPs
 }
 
 func main() {
-	//handle requests
+	// Handle incoming HTTP requests.
+	log.Println("-	Listening and serving...")
 	routes.HandleRequests()
 }

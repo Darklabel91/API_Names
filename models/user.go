@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"log"
@@ -9,20 +8,21 @@ import (
 	"os"
 )
 
-//User is the struct of API users
+// User is the struct for API users
 type User struct {
-	gorm.Model `json:"Gorm.Model"`
-	Email      string `gorm:"unique" json:"Email,omitempty"`
-	Password   string `json:"Password,omitempty"`
-	IP         string `json:"IP,omitempty"`
+	gorm.Model `json:"Gorm.Model"` // Use backticks for struct tags
+	Email      string              `gorm:"unique" json:"Email,omitempty"`
+	Password   string              `json:"Password,omitempty"`
+	IP         string              `json:"IP,omitempty"`
 }
 
-//UserInputBody struct for validation middlewares
+// UserInputBody is the struct for validation middlewares
 type UserInputBody struct {
 	Email    string `json:"Email,omitempty"`
 	Password string `json:"Password,omitempty"`
 }
 
+// CreateUser creates a new user
 func (n *User) CreateUser() (*User, error) {
 	user := n
 	r := DB.Create(&user)
@@ -32,6 +32,7 @@ func (n *User) CreateUser() (*User, error) {
 	return user, nil
 }
 
+// GetAllUsers returns all users in the database
 func (*User) GetAllUsers() ([]User, error) {
 	var users []User
 	r := DB.Find(&users)
@@ -41,6 +42,7 @@ func (*User) GetAllUsers() ([]User, error) {
 	return users, nil
 }
 
+// GetUserById gets a user by their ID
 func (*User) GetUserById(id int) (*User, *gorm.DB, error) {
 	var getUser User
 	data := DB.Where("ID =?", id).Find(&getUser)
@@ -50,6 +52,7 @@ func (*User) GetUserById(id int) (*User, *gorm.DB, error) {
 	return &getUser, data, nil
 }
 
+// GetUserByEmail gets a user by their email
 func (*User) GetUserByEmail(email string) (*User, error) {
 	var getUser User
 	data := DB.Where("email = ?", email).Find(&getUser)
@@ -59,6 +62,7 @@ func (*User) GetUserByEmail(email string) (*User, error) {
 	return &getUser, nil
 }
 
+// DeleteUserById deletes a user by their ID
 func (*User) DeleteUserById(id int) (User, error) {
 	var getUser User
 	r := DB.Where("ID =?", id).Delete(&getUser)
@@ -68,7 +72,7 @@ func (*User) DeleteUserById(id int) (User, error) {
 	return getUser, nil
 }
 
-//CreateRoot creates a user directly from the server
+// CreateRoot creates a user directly from the server
 func CreateRoot() error {
 	var user User
 	DB.Raw("select * from users where id = 1").Find(&user)
@@ -87,14 +91,12 @@ func CreateRoot() error {
 
 		DB.Create(&userRoot)
 
-		fmt.Println("-	Created first user")
-		return nil
+		log.Println("-	Created first user")
 	}
-
 	return nil
 }
 
-//getOutboundIP get preferred outbound ip of the server
+// getOutboundIP gets the preferred outbound IP of the server
 func getOutboundIP() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
@@ -107,7 +109,7 @@ func getOutboundIP() string {
 	return localAddr.IP.String()
 }
 
-//TrustedIPs return all IPS from user's on the database
+// TrustedIPs returns all IPs from users on the database
 func TrustedIPs() ([]string, error) {
 	var user User
 	users, err := user.GetAllUsers()
