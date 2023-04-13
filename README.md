@@ -37,7 +37,7 @@ go run main.go
 
 
 ## API Endpoints
-The main endpoint for the API is ```http://localhost:8080/metaphone/:name```. You need to log in to get an access token before you can access any other endpoint. We use JWT to generate access tokens.
+The main endpoint for the API is ```http://localhost:8080/metaphone/:name```. You need to log in to get an access token before you can access any other endpoint.
 
 The following table shows the available endpoints, their corresponding HTTP methods, and a brief description:
 | Req    | Endpoint                               | Description                         | Success           | Error                  |
