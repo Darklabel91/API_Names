@@ -31,7 +31,7 @@ func ValidateAuth() gin.HandlerFunc {
 			var err error
 			tokenString, err = c.Cookie(TokenCookie)
 			if err != nil {
-				c.AbortWithStatus(http.StatusUnauthorized)
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "error generating cookie"})
 				return
 			}
 		}
@@ -45,21 +45,21 @@ func ValidateAuth() gin.HandlerFunc {
 		})
 
 		if err != nil {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "error generating token"})
 			return
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			// Check the expiration date
 			if float64(time.Now().Unix()) > claims["exp"].(float64) {
-				c.AbortWithStatus(http.StatusUnauthorized)
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token expired"})
 				return
 			}
 
 			// Continue
 			c.Next()
 		} else {
-			c.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token not found"})
 			return
 		}
 	}
@@ -74,7 +74,7 @@ func RateLimit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check if the request has exceeded the rate limit
 		if !limiter.Allow() {
-			c.AbortWithStatus(http.StatusTooManyRequests)
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{"error": "too many requests on the same user"})
 			return
 		}
 

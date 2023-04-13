@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"gorm.io/gorm"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -31,9 +33,8 @@ func (l *Log) UploadLog(ticker *time.Ticker, fileName string) {
 			case <-ticker.C:
 				err := l.Upload(fileName)
 				if err != nil {
-					panic(err)
+					log.Fatalf("Error uploading log: %v", err)
 				}
-
 			}
 		}
 	}()
@@ -44,14 +45,14 @@ func (l *Log) UploadLog(ticker *time.Ticker, fileName string) {
 func (*Log) Upload(fileName string) error {
 	file, err := os.OpenFile(fileName, os.O_RDWR, 0666)
 	if err != nil {
-		return err
+		return fmt.Errorf("error opening log file: %w", err)
 	}
 	defer file.Close()
 
 	//read the file content
 	content, err := ioutil.ReadFile(file.Name())
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading log file: %w", err)
 	}
 
 	//don't upload if content is 0
@@ -65,7 +66,7 @@ func (*Log) Upload(fileName string) error {
 	// write the modified content back to the file
 	err = ioutil.WriteFile(file.Name(), content, 0666)
 	if err != nil {
-		return err
+		return fmt.Errorf("error writing log file: %w", err)
 	}
 
 	// Create a scanner
@@ -78,7 +79,7 @@ func (*Log) Upload(fileName string) error {
 		line := scanner.Text()
 		logLine, err := breakLog(line)
 		if err != nil {
-			return err
+			return fmt.Errorf("error breaking log: %w", err)
 		}
 
 		logs = append(logs, logLine)
@@ -88,13 +89,13 @@ func (*Log) Upload(fileName string) error {
 	if len(logs) != 0 {
 		err = DB.Create(&logs).Error
 		if err != nil {
-			return err
+			return fmt.Errorf("error saving log file: %w", err)
 		}
 
 		//clear the file
 		err = file.Truncate(0)
 		if err != nil {
-			return err
+			return fmt.Errorf("error clearing log file: %w", err)
 		}
 
 		return nil

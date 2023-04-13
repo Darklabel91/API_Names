@@ -23,9 +23,9 @@ type NameType struct {
 // CreateName creates a new name record
 func (n *NameType) CreateName() (*NameType, error) {
 	name := n
-	r := DB.Create(&name)
-	if r.Error != nil {
-		return nil, r.Error
+	err := DB.Create(&name)
+	if err.Error != nil {
+		return nil, fmt.Errorf("error creating name: %w", err.Error)
 	}
 	return name, nil
 }
@@ -33,9 +33,9 @@ func (n *NameType) CreateName() (*NameType, error) {
 // GetAllNames returns all non-deleted names in the database
 func (*NameType) GetAllNames() ([]NameType, error) {
 	var Names []NameType
-	r := DB.Raw("SELECT * FROM name_types WHERE name_types.deleted_at IS NULL").Find(&Names)
-	if r.Error != nil {
-		return nil, r.Error
+	err := DB.Raw("SELECT * FROM name_types WHERE name_types.deleted_at IS NULL").Find(&Names)
+	if err.Error != nil {
+		return nil, fmt.Errorf("error getting all names:  %w", err.Error)
 	}
 	return Names, nil
 }
@@ -45,7 +45,7 @@ func (*NameType) GetNameById(id int) (*NameType, *gorm.DB, error) {
 	var getName NameType
 	data := DB.Raw("SELECT * FROM name_types WHERE id = ? AND name_types.deleted_at IS NULL", id).Find(&getName)
 	if data.Error != nil {
-		return nil, nil, data.Error
+		return nil, nil, fmt.Errorf("error getting name by id:  %w", data.Error)
 	}
 	return &getName, data, nil
 }
@@ -55,7 +55,7 @@ func (*NameType) GetNameByName(name string) (*NameType, error) {
 	var getName NameType
 	data := DB.Raw("SELECT * FROM name_types WHERE name = ? AND name_types.deleted_at IS NULL", name).Find(&getName)
 	if data.Error != nil {
-		return nil, data.Error
+		return nil, fmt.Errorf("error getting name by name:  %w", data.Error)
 	}
 	return &getName, nil
 }
@@ -65,7 +65,7 @@ func (*NameType) GetNameByMetaphone(mtf string) ([]NameType, error) {
 	var getNames []NameType
 	data := DB.Raw("SELECT * FROM name_types WHERE metaphone = ? AND name_types.deleted_at IS NULL", mtf).Find(&getNames)
 	if data.Error != nil {
-		return nil, data.Error
+		return nil, fmt.Errorf("error getting name by metaphone:  %w", data.Error)
 	}
 	return getNames, nil
 }
@@ -75,7 +75,7 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 	// Search for an exact match in the database.
 	perfectMatch, err := n.GetNameByName(strings.ToUpper(name))
 	if err != nil {
-		return nil, fmt.Errorf("failed to search for exact match: %w", err)
+		return nil, fmt.Errorf("error getting name by similar match: %w", err)
 	}
 	if perfectMatch.ID != 0 {
 		return perfectMatch, nil
@@ -90,14 +90,14 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 		// Search for all similar metaphone codes if no exact match is found.
 		exactMetaphoneMatches = n.SearchSimilarMetaphone(nameMetaphone, allNames)
 		if len(exactMetaphoneMatches) == 0 {
-			return nil, fmt.Errorf("no matches found for name %q", name)
+			return nil, fmt.Errorf("error no matches found for name: %w", err)
 		}
 	}
 
 	// Get all similar names by metaphone list.
 	similarNames := n.SearchSimilarNames(name, exactMetaphoneMatches, SimilarityThreshold)
 	if len(similarNames) == 0 {
-		return nil, fmt.Errorf("no similar names found for %q", name)
+		return nil, fmt.Errorf("error no similar names found for %q", name)
 	}
 
 	// Search for all similar names of all similar names listed so far if similarNames is too small.
@@ -111,13 +111,13 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 	// Order all similarNames by LEVENSHTEIN from high to low.
 	similarNamesOrderedByLevenshtein, err := OrderBySimilarity(similarNames)
 	if err != nil {
-		return nil, fmt.Errorf("failed to order by similar names: %w", err)
+		return nil, fmt.Errorf("error failed to order by similar names: %w", err)
 	}
 
 	// Return the canonical name combined with similar names ordered by levenshtein.
 	canonicalEntity, err := n.SearchCanonicalName(name, SimilarityThreshold, allNames, exactMetaphoneMatches, similarNamesOrderedByLevenshtein)
 	if err != nil {
-		return nil, fmt.Errorf("failed to search for canonical name: %w", err)
+		return nil, fmt.Errorf("error failed to find canonical name: %w", err)
 	}
 
 	return canonicalEntity, nil
@@ -126,9 +126,9 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 // DeleteNameById deletes a name from the database by its ID.
 func (*NameType) DeleteNameById(id int) (NameType, error) {
 	var getName NameType
-	r := DB.Where("id = ?", id).Delete(&getName)
-	if r.Error != nil {
-		return NameType{}, fmt.Errorf("failed to delete name with ID %d: %w", id, r.Error)
+	err := DB.Where("id = ?", id).Delete(&getName)
+	if err.Error != nil {
+		return NameType{}, fmt.Errorf("error deliting name: %w", err.Error)
 	}
 	return getName, nil
 }
@@ -153,28 +153,35 @@ func (*NameType) SearchSimilarMetaphone(paradigmMetaphone string, allNames []Nam
 func (*NameType) SearchSimilarNames(paradigmName string, allNames []NameType, threshold float32) []NameSimilarity {
 	// create an empty slice to store the return values
 	var similarNames []NameSimilarity
+
 	// iterate over all the names in allNames
 	for _, name := range allNames {
 		// calculate the similarity between the paradigmName and the name using the metaphone package
 		similarity := metaphone.SimilarityBetweenWords(strings.ToLower(paradigmName), strings.ToLower(name.Name))
+
 		// if the similarity score is higher than the given threshold
 		if similarity >= threshold {
+
 			// create a new NameLevenshtein element with the name and the similarity score
 			similarName := NameSimilarity{Name: name.Name, Similarity: similarity}
+
 			// add the new NameLevenshtein element to the similarNames slice
 			similarNames = append(similarNames, similarName)
+
 			// split the name variations string of the name and iterate over each variation
 			for _, vw := range strings.Split(name.NameVariations, "|") {
 				// if the variation is not empty
 				if vw != "" {
 					// create a new NameLevenshtein element with the variation and the similarity score
 					variationName := NameSimilarity{Name: vw, Similarity: similarity}
+
 					// add the new NameLevenshtein element to the similarNames slice
 					similarNames = append(similarNames, variationName)
 				}
 			}
 		}
 	}
+
 	// if no names were found with a similarity score higher than the threshold, try again with a lower threshold
 	if len(similarNames) == 0 {
 		for _, name := range allNames {

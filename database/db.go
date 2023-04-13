@@ -15,11 +15,11 @@ import (
 )
 
 // ConnectDB opens a connection to the database and migrates tables using ORM
-func ConnectDB() *gorm.DB {
+func ConnectDB() (*gorm.DB, error) {
 	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("error loading .env file: %v", err)
 	}
 
 	// Get environment variables
@@ -32,29 +32,29 @@ func ConnectDB() *gorm.DB {
 	// Create database
 	err = createDatabase(dbHost, dbUsername, dbPassword, dbName)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("error creating database: %v", err)
 	}
 
 	// Connect to the database
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&loc=Local", dbUsername, dbPassword, dbHost, dbPort, dbName)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("error openning db connection: %v", err)
 	}
 
 	// Migrate tables
 	err = db.AutoMigrate(&models.NameType{}, &models.User{}, &models.Log{})
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("error automigrating tables: %v", err)
 	}
 
 	// Upload CSV data to NameType table
 	err = uploadCSVNameTypes(db)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("error connecting db to upload csv: %v", err)
 	}
 
-	return db
+	return db, nil
 }
 
 // createDatabase runs the create database script

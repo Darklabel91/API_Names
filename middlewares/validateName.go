@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"fmt"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -15,19 +14,20 @@ func ValidateName() gin.HandlerFunc {
 		// Try to retrieve the ":name" parameter from the request context
 		name := c.Param("name")
 
+		if len(name) < 3 {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Name must be at least 3 characters"})
+			return
+		}
+
 		// Check if the name contains whitespace
 		if strings.Contains(name, " ") {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Invalid ':name' parameter: '%s' should contain a single word with no spaces", name),
-			})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Name must contain a single word with no spaces"})
 			return
 		}
 
 		// Check if the name contains any numbers
 		if _, err := strconv.Atoi(name); err == nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Invalid ':name' parameter: '%s' should not contain any numbers", name),
-			})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Name must not contain any numbers"})
 			return
 		}
 

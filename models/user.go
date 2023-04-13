@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"log"
@@ -25,9 +26,9 @@ type UserInputBody struct {
 // CreateUser creates a new user
 func (n *User) CreateUser() (*User, error) {
 	user := n
-	r := DB.Create(&user)
-	if r.Error != nil {
-		return nil, r.Error
+	err := DB.Create(&user)
+	if err.Error != nil {
+		return nil, fmt.Errorf("error creating userr: %w", err.Error)
 	}
 	return user, nil
 }
@@ -35,9 +36,9 @@ func (n *User) CreateUser() (*User, error) {
 // GetAllUsers returns all users in the database
 func (*User) GetAllUsers() ([]User, error) {
 	var users []User
-	r := DB.Find(&users)
-	if r.Error != nil {
-		return nil, r.Error
+	err := DB.Find(&users)
+	if err.Error != nil {
+		return nil, fmt.Errorf("error getting all users: %w", err.Error)
 	}
 	return users, nil
 }
@@ -47,7 +48,7 @@ func (*User) GetUserById(id int) (*User, *gorm.DB, error) {
 	var getUser User
 	data := DB.Where("ID =?", id).Find(&getUser)
 	if data.Error != nil {
-		return nil, nil, data.Error
+		return nil, nil, fmt.Errorf("error getting user: %w", data.Error)
 	}
 	return &getUser, data, nil
 }
@@ -55,9 +56,9 @@ func (*User) GetUserById(id int) (*User, *gorm.DB, error) {
 // GetUserByEmail gets a user by their email
 func (*User) GetUserByEmail(email string) (*User, error) {
 	var getUser User
-	data := DB.Where("email = ?", email).Find(&getUser)
-	if data.Error != nil {
-		return nil, data.Error
+	err := DB.Where("email = ?", email).Find(&getUser)
+	if err.Error != nil {
+		return nil, fmt.Errorf("error getting user by email: %w", err.Error)
 	}
 	return &getUser, nil
 }
@@ -65,9 +66,9 @@ func (*User) GetUserByEmail(email string) (*User, error) {
 // DeleteUserById deletes a user by their ID
 func (*User) DeleteUserById(id int) (User, error) {
 	var getUser User
-	r := DB.Where("ID =?", id).Delete(&getUser)
-	if r.Error != nil {
-		return User{}, r.Error
+	err := DB.Where("ID =?", id).Delete(&getUser)
+	if err.Error != nil {
+		return User{}, fmt.Errorf("error deliting user: %w", err.Error)
 	}
 	return getUser, nil
 }
@@ -80,13 +81,18 @@ func CreateRoot() error {
 	if user.ID == 0 {
 		hash, err := bcrypt.GenerateFromPassword([]byte(os.Getenv("SECRET")), 10)
 		if err != nil {
-			return err
+			return fmt.Errorf("error hashing the password on create root: %w", err)
+		}
+
+		ip, err := getOutboundIP()
+		if err != nil {
+			return fmt.Errorf("error getting outbound ip for root: %w", err)
 		}
 
 		userRoot := User{
 			Email:    "root@root.com",
 			Password: string(hash),
-			IP:       getOutboundIP(),
+			IP:       ip,
 		}
 
 		DB.Create(&userRoot)
@@ -97,16 +103,16 @@ func CreateRoot() error {
 }
 
 // getOutboundIP gets the preferred outbound IP of the server
-func getOutboundIP() string {
+func getOutboundIP() (string, error) {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
-		log.Fatal(err)
+		return "", fmt.Errorf("error getting server outbound IP: %w", err)
 	}
 	defer conn.Close()
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
-	return localAddr.IP.String()
+	return localAddr.IP.String(), nil
 }
 
 // TrustedIPs returns all IPs from users on the database
@@ -114,7 +120,7 @@ func TrustedIPs() ([]string, error) {
 	var user User
 	users, err := user.GetAllUsers()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting all trusted usesr ips: %w", err)
 	}
 
 	var ips []string

@@ -13,14 +13,14 @@ func Signup(c *gin.Context) {
 	// Get email and password from request body.
 	var body models.UserInputBody
 	if c.Bind(&body) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON request"})
 		return
 	}
 
 	// Hash the password.
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 10)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to hash password"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Error hashing password"})
 		return
 	}
 
@@ -32,7 +32,7 @@ func Signup(c *gin.Context) {
 	}
 	u, err := user.CreateUser()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Message": "Email already registered"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Email already exists"})
 		return
 	}
 

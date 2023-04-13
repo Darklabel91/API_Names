@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"sync"
@@ -16,7 +17,7 @@ const DOOR = ":8080"
 const FILENAME = "Logs.txt"
 const MICROSECONDS = 300
 
-func HandleRequests() {
+func HandleRequests() error {
 	// Set Gin to release mode.
 	gin.SetMode(gin.ReleaseMode)
 
@@ -26,13 +27,13 @@ func HandleRequests() {
 	// Use the OnlyAllowIPs middleware on all routes.
 	err := r.SetTrustedProxies(models.IPs)
 	if err != nil {
-		return
+		return fmt.Errorf("error setting up proxies: %w", err)
 	}
 
 	// Create a file to store the logs.
 	file, err := os.OpenFile(FILENAME, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
-		return
+		return fmt.Errorf("error creating log file: %w", err)
 	}
 
 	// Use the Gin logger with a custom log file.
@@ -69,8 +70,10 @@ func HandleRequests() {
 	// Start the server.
 	err = r.Run(DOOR)
 	if err != nil {
-		return
+		return fmt.Errorf("error starting server: %w", err)
 	}
+
+	return nil
 }
 
 // Caches the name types.

@@ -1,7 +1,6 @@
 package middlewares
 
 import (
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -13,9 +12,7 @@ func ValidateID() gin.HandlerFunc {
 		// Try to parse the ":id" parameter as an integer
 		if _, err := strconv.Atoi(c.Param("id")); err != nil {
 			// If the parameter is not a valid integer, return a bad request error with a JSON response
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": fmt.Sprintf("Invalid ':id' parameter: '%s' is not a valid integer", c.Param("id")),
-			})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid id parameter, it must be a valid integer"})
 			return
 		}
 		c.Next()

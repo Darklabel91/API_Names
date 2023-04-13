@@ -10,8 +10,8 @@ import (
 
 func init() {
 	// Connect to the database.
-	db := database.ConnectDB()
-	if db.Error != nil {
+	db, err := database.ConnectDB()
+	if err != nil {
 		log.Fatalf("Error connecting to the database: %v", db.Error)
 	}
 	models.DB = db
@@ -34,5 +34,8 @@ func init() {
 func main() {
 	// Handle incoming HTTP requests.
 	log.Println("-	Listening and serving...")
-	routes.HandleRequests()
+	err := routes.HandleRequests()
+	if err != nil {
+		log.Fatalf("Error handling requests: %v", err)
+	}
 }

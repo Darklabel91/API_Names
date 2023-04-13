@@ -18,7 +18,7 @@ func Login(c *gin.Context) {
 	// Get email and password from request body
 	var body models.UserInputBody
 	if err := c.Bind(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Message": "Failed to read body"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON request"})
 		return
 	}
 
@@ -26,20 +26,21 @@ func Login(c *gin.Context) {
 	var user models.User
 	u, err := user.GetUserByEmail(body.Email)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid email"})
 		return
 	}
 
 	// Compare password from request body with user's hashed password
-	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(body.Password)); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Message": "Invalid email or password"})
+	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(body.Password))
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid password"})
 		return
 	}
 
 	// Generate JWT token
 	token, err := generateJWTToken(u.ID, 1*time.Hour*24)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Message": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
