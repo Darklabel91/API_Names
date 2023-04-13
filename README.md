@@ -24,7 +24,7 @@ Before running the API, make sure you have MySQL installed on your machine.
   DB_PORT=<your_database_port>
   SECRET=<your_jwt_secret>
   ```
-  Replace the values with your own database credentials and a secret for JWT token generation.
+  Replace the values with your own database credentials and a secret for JWT token generation. Worht to mention that the DB_NAME does not require an existing database.
   
 3. Finally, run the API using the following command:
   ```go
