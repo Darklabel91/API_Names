@@ -1,40 +1,44 @@
 # API_Names
 
-The API_Names project is designed to find a name and its possible variations from a given name, and correct any misspellings. It uses the Metaphone (br) algorithm to search the database and the Levenshtein distance method for correction.
+The API_Names project is an API designed to find a name and its possible variations from a given name, and correct any misspellings. It uses the Metaphone (br) algorithm to search the database and the Levenshtein distance method for correction.
 
 ## Features
-- JWT Authenticantion
+- JWT Authentication
 - Limited access by Token
-- Signin 
+- Sign-up
 - Login
-- log local and imported to  the database from time to time
-- middlewares 
+- Log local and imported to the database from time to time
+- Middleware
 
-## How to Run
+## Requirements
+Before running the API, make sure you have MySQL installed on your machine.
 
-Before running the API, make sure you have MySQL installed on your machine. Then, create a .env file and set the following environment variables:
- ```
-DB_USERNAME
-DB_PASSWORD
-DB_NAME
-DB_HOST
-DB_PORT
-SECRET
-```
-Finally, run the API using the command:
-```go
-go run main.go
-```
-on the first run the prompt will return:
-```
-go run main.go
-2023/04/12 18:48:48 -   Created Database
-2023/04/12 18:48:48 -   Upload data start
-2023/04/12 18:49:21 -   Upload data finished 33.113701109s
-2023/04/12 18:49:21 -   Created first user
-2023/04/12 18:49:21 -   Listening and serving...
-```
-
+## Installation and Setup
+1. Clone the repository 
+2. Create a .env file at the root of your project and set the following environment variables:
+  ```
+  DB_USERNAME=<your_username>
+  DB_PASSWORD=<your_password>
+  DB_NAME=<your_database_name>
+  DB_HOST=<your_database_host>
+  DB_PORT=<your_database_port>
+  SECRET=<your_jwt_secret>
+  ```
+  Replace the values with your own database credentials and a secret for JWT token generation.
+  
+3. Finally, run the API using the following command:
+  ```go
+  go run main.go
+  ```
+  On the first run, the prompt will return:
+  ```bash
+  go run main.go
+  2023/04/12 18:48:48 -   Created Database
+  2023/04/12 18:48:48 -   Upload data start
+  2023/04/12 18:49:21 -   Upload data finished 33.113701109s
+  2023/04/12 18:49:21 -   Created first user
+  2023/04/12 18:49:21 -   Listening and serving...
+  ```
 
 ## API Endpoints
 The main endpoint for the API is ```http://localhost:8080/metaphone/:name```. You need to log in to get an access token before you can access any other endpoint.
