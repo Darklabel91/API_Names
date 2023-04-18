@@ -60,7 +60,7 @@ func HandleRequests() error {
 	r.Use(cachingNameTypes(cache))
 
 	// CRUD routes.
-	r.POST("/name", middlewares.ValidateName(), middlewares.ValidateNameJSON(), controllers.CreateName)
+	r.POST("/name", middlewares.ValidateNameJSON(), controllers.CreateName)
 	r.GET("/:id", middlewares.ValidateID(), controllers.GetID)
 	r.GET("/name/:name", middlewares.ValidateName(), controllers.GetName)
 	r.GET("/metaphone/:name", middlewares.ValidateName(), controllers.GetMetaphoneMatch)
@@ -84,8 +84,7 @@ func cachingNameTypes(cache *sync.Map) gin.HandlerFunc {
 		if existKey {
 			c.Set("nameTypes", cacheData)
 		} else {
-			var nameType models.NameType
-			allNames, err := nameType.GetAllNames()
+			allNames, err := models.GetAllNames()
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"Message": "Error on caching all name types"})
 				return

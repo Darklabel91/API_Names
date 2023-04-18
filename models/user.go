@@ -24,17 +24,26 @@ type UserInputBody struct {
 }
 
 // CreateUser creates a new user
-func (n *User) CreateUser() (*User, error) {
-	user := n
-	err := DB.Create(&user)
+func (u *User) CreateUser() (User, error) {
+	err := DB.Create(&u)
 	if err.Error != nil {
-		return nil, fmt.Errorf("error creating userr: %w", err.Error)
+		return User{}, fmt.Errorf("error creating userr: %w", err.Error)
 	}
-	return user, nil
+	return *u, nil
+}
+
+// DeleteUser deletes a user by their ID
+func (u *User) DeleteUser() (User, error) {
+	var getUser User
+	err := DB.Delete(&u)
+	if err.Error != nil {
+		return User{}, fmt.Errorf("error deliting user: %w", err.Error)
+	}
+	return getUser, nil
 }
 
 // GetAllUsers returns all users in the database
-func (*User) GetAllUsers() ([]User, error) {
+func GetAllUsers() ([]User, error) {
 	var users []User
 	err := DB.Find(&users)
 	if err.Error != nil {
@@ -43,32 +52,12 @@ func (*User) GetAllUsers() ([]User, error) {
 	return users, nil
 }
 
-// GetUserById gets a user by their ID
-func (*User) GetUserById(id int) (*User, *gorm.DB, error) {
-	var getUser User
-	data := DB.Where("ID =?", id).Find(&getUser)
-	if data.Error != nil {
-		return nil, nil, fmt.Errorf("error getting user: %w", data.Error)
-	}
-	return &getUser, data, nil
-}
-
 // GetUserByEmail gets a user by their email
-func (*User) GetUserByEmail(email string) (*User, error) {
+func GetUserByEmail(email string) (User, error) {
 	var getUser User
 	err := DB.Where("email = ?", email).Find(&getUser)
 	if err.Error != nil {
-		return nil, fmt.Errorf("error getting user by email: %w", err.Error)
-	}
-	return &getUser, nil
-}
-
-// DeleteUserById deletes a user by their ID
-func (*User) DeleteUserById(id int) (User, error) {
-	var getUser User
-	err := DB.Where("ID =?", id).Delete(&getUser)
-	if err.Error != nil {
-		return User{}, fmt.Errorf("error deliting user: %w", err.Error)
+		return User{}, fmt.Errorf("error getting user by email: %w", err.Error)
 	}
 	return getUser, nil
 }
@@ -95,7 +84,10 @@ func CreateRoot() error {
 			IP:       ip,
 		}
 
-		DB.Create(&userRoot)
+		_, err = userRoot.CreateUser()
+		if err != nil {
+			return fmt.Errorf("error creating user root: %w", err)
+		}
 
 		log.Println("-	Created first user")
 	}
@@ -117,8 +109,7 @@ func getOutboundIP() (string, error) {
 
 // TrustedIPs returns all IPs from users on the database
 func TrustedIPs() ([]string, error) {
-	var user User
-	users, err := user.GetAllUsers()
+	users, err := GetAllUsers()
 	if err != nil {
 		return nil, fmt.Errorf("error getting all trusted usesr ips: %w", err)
 	}

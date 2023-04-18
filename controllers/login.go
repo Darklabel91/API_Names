@@ -23,8 +23,7 @@ func Login(c *gin.Context) {
 	}
 
 	// Look up user by email
-	var user models.User
-	u, err := user.GetUserByEmail(body.Email)
+	u, err := models.GetUserByEmail(body.Email)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid email"})
 		return

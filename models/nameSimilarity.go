@@ -40,14 +40,13 @@ func OrderBySimilarity(arr []NameSimilarity) ([]string, error) {
 	}
 
 	// remove duplicates from the sorted array
-	var ns NameSimilarity
-	retArr = ns.removeDuplicates(retArr)
+	retArr = removeDuplicates(retArr)
 
 	return retArr, nil
 }
 
 // removeDuplicates removes duplicate strings from a slice of strings.
-func (ns *NameSimilarity) removeDuplicates(arr []string) []string {
+func removeDuplicates(arr []string) []string {
 	var cleanArr []string
 
 	for _, a := range arr {

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"github.com/Darklabel91/API_Names/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -19,8 +20,7 @@ func CreateName(c *gin.Context) {
 	}
 
 	// Parse nameValue into models.NameTypeInput
-	var input models.NameType
-	input, ok = nameValue.(models.NameType)
+	newName, ok := nameValue.(models.NameType)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "failed to parse name"})
 		return
@@ -31,14 +31,16 @@ func CreateName(c *gin.Context) {
 
 	// Check if there's an exact name on the database
 	for _, name := range preloadTable {
-		if name.Name == input.Name {
+		if name.Name == newName.Name {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "name already on the database"})
 			return
 		}
 	}
 
+	fmt.Println("chegou aqui")
+
 	// Create name
-	n, err := input.CreateName()
+	err := newName.CreateName()
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error on creating name"})
 		return
@@ -48,14 +50,16 @@ func CreateName(c *gin.Context) {
 	clearCache(c)
 
 	// Return successful response
-	c.JSON(http.StatusOK, n)
+	c.JSON(http.StatusOK, gin.H{"Message": "Name created"})
+
+	// Clear the cache
+	clearCache(c)
+
 	return
 }
 
 //GetID reads a name by id
 func GetID(c *gin.Context) {
-	var name models.NameType
-
 	// Convert id string into int
 	param := c.Params.ByName("id")
 	id, err := strconv.Atoi(param)
@@ -65,7 +69,7 @@ func GetID(c *gin.Context) {
 	}
 
 	// Get the name by id
-	n, _, err := name.GetNameById(id)
+	n, _, err := models.GetNameById(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error getting name by id"})
 		return
@@ -77,18 +81,17 @@ func GetID(c *gin.Context) {
 
 	// Return successful response
 	c.JSON(http.StatusOK, n)
+
 	return
 }
 
 //GetName reads a name by name
 func GetName(c *gin.Context) {
-	var name models.NameType
-
 	// Get name to be searched
 	param := c.Params.ByName("name")
 
 	// Search for name
-	n, err := name.GetNameByName(strings.ToUpper(param))
+	n, err := models.GetNameByName(strings.ToUpper(param))
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error getting name by name"})
 		return
@@ -105,8 +108,6 @@ func GetName(c *gin.Context) {
 
 //GetMetaphoneMatch reads a name by metaphone
 func GetMetaphoneMatch(c *gin.Context) {
-	var nameType models.NameType
-
 	// Get name to be searched
 	name := c.Params.ByName("name")
 
@@ -114,7 +115,7 @@ func GetMetaphoneMatch(c *gin.Context) {
 	preloadTable := checkCache(c)
 
 	// Search for similar names
-	canonicalEntity, err := nameType.GetSimilarMatch(name, preloadTable)
+	canonicalEntity, err := models.GetSimilarMatch(name, preloadTable)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "error finding canonical entity"})
 		return
@@ -134,15 +135,11 @@ func UpdateName(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error on parsing id"})
 		return
 	}
+
 	// Get the name by id
-	var n models.NameType
-	name, db, err := n.GetNameById(id)
+	name, db, err := models.GetNameById(id)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "error getting name by id"})
-		return
-	}
-	if name.ID == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "name id not found"})
 		return
 	}
 
@@ -154,51 +151,30 @@ func UpdateName(c *gin.Context) {
 	}
 
 	// Parse nameValue into models.NameTypeInput
-	var input models.NameType
-	input, ok = nameValue.(models.NameType)
+	updateName, ok := nameValue.(models.NameType)
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "failed to parse name"})
 		return
 	}
 
-	// Check if input is the same as the name in the database
-	if input.Name == name.Name && input.Classification == name.Classification && input.Metaphone == name.Metaphone && input.NameVariations == name.NameVariations {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "JSON doesn't change item"})
-		return
-	} else {
-		// Update the name properties if they have changed
-		if input.Name != "" && input.Name != name.Name {
-			name.Name = input.Name
-		}
-		if input.Classification != "" && input.Classification != name.Classification {
-			name.Classification = input.Classification
-		}
-		if input.Metaphone != "" && input.Metaphone != name.Metaphone {
-			name.Metaphone = input.Metaphone
-		}
-		if input.NameVariations != "" && input.NameVariations != name.NameVariations {
-			name.NameVariations = input.NameVariations
-		}
-
-		// Save the updated name to the database
-		if err := db.Save(name).Error; err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "error on updating item"})
-			return
-		}
-
-		// Return the updated name
-		c.JSON(http.StatusOK, name)
-
-		// Clear the cache
-		clearCache(c)
-
+	// Update the name get by id with the updated struct
+	un, err := name.UpdateName(db, updateName)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "error on updating item: " + err.Error()})
 		return
 	}
+
+	// Return the updated name
+	c.JSON(http.StatusOK, un)
+
+	// Clear the cache
+	clearCache(c)
+
+	return
 }
 
 // DeleteName deletes name off database by id
 func DeleteName(c *gin.Context) {
-	var name models.NameType
 	// Convert id string into int
 	param := c.Params.ByName("id")
 	id, err := strconv.Atoi(param)
@@ -208,41 +184,38 @@ func DeleteName(c *gin.Context) {
 	}
 
 	// Check if the name with given id exists
-	n, _, err := name.GetNameById(id)
+	name, _, err := models.GetNameById(id)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "error on getting name by id"})
-		return
-	}
-	if n.ID == 0 {
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "name id not found"})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "error on deleting name: " + err.Error()})
 		return
 	}
 
 	// Delete the name from the database
-	_, err = name.DeleteNameById(id)
+	err = name.DeleteName()
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "error on deleting name"})
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "error on deleting name: " + err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "id deleted"})
+	c.JSON(http.StatusOK, gin.H{"Message": "id deleted"})
+
+	// Clear the cache
+	clearCache(c)
+
 	return
 }
 
 // checkCache retrieves the cached name types from the context if they exist, otherwise it retrieves them from the database
 func checkCache(c *gin.Context) []models.NameType {
-	// Initialize a variable for the NameType type
-	var nameType models.NameType
 	// Initialize a variable for the cached name types
 	var preloadTable []models.NameType
+
 	// Get the cached name types from the context
 	cache, existKey := c.Get("nameTypes")
-	// If the name types are found in the cache, set them to the `preloadTable` variable
 	if existKey {
 		preloadTable = cache.([]models.NameType)
 	} else {
-		// If the name types are not found in the cache, retrieve them from the database
-		allNames, err := nameType.GetAllNames()
+		allNames, err := models.GetAllNames()
 		if err != nil {
 			// If there is an error retrieving the name types from the database, return nil
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Error on caching all name types"})

@@ -21,19 +21,63 @@ type NameType struct {
 }
 
 // CreateName creates a new name record
-func (n *NameType) CreateName() (*NameType, error) {
-	name := n
-	err := DB.Create(&name)
+func (n *NameType) CreateName() error {
+	err := DB.Create(&n)
 	if err.Error != nil {
-		return nil, fmt.Errorf("error creating name: %w", err.Error)
+		return fmt.Errorf("error creating name: %w", err.Error)
 	}
-	return name, nil
+	return nil
+}
+
+// UpdateName updates a name from the database by its ID.
+func (n *NameType) UpdateName(db *gorm.DB, updateName NameType) (NameType, error) {
+	// Check if input is the same as the name in the database
+	if updateName.Name == n.Name && updateName.Classification == n.Classification && updateName.Metaphone == n.Metaphone && updateName.NameVariations == n.NameVariations {
+		return NameType{}, fmt.Errorf("no update detected: %w", errors.New("update struct is exactly the same of original struct"))
+	} else {
+		// Update the name properties if they have changed
+		if updateName.Name != "" && updateName.Name != n.Name {
+			n.Name = updateName.Name
+		}
+		if updateName.Classification != "" && updateName.Classification != n.Classification {
+			n.Classification = updateName.Classification
+		}
+		if updateName.Metaphone != "" && updateName.Metaphone != n.Metaphone {
+			n.Metaphone = updateName.Metaphone
+		}
+		if updateName.NameVariations != "" && updateName.NameVariations != n.NameVariations {
+			n.NameVariations = updateName.NameVariations
+		}
+	}
+
+	// Save the updated name to the database
+	err := db.Save(&n).Error
+	if err != nil {
+		return NameType{}, fmt.Errorf("error on updating item: %w", err.Error)
+	}
+
+	return *n, nil
+}
+
+// DeleteName deletes a name from the database by its ID.
+func (n *NameType) DeleteName() error {
+	err := DB.Where("id = ?", n.ID)
+	if err.Error != nil {
+		return fmt.Errorf("error deliting name: %w", err.Error)
+	}
+
+	if n.DeletedAt != (gorm.DeletedAt{}) {
+		return fmt.Errorf("name already deleted")
+	}
+
+	DB.Delete(&n)
+	return nil
 }
 
 // GetAllNames returns all non-deleted names in the database
-func (*NameType) GetAllNames() ([]NameType, error) {
+func GetAllNames() ([]NameType, error) {
 	var Names []NameType
-	err := DB.Raw("SELECT * FROM name_types WHERE name_types.deleted_at IS NULL").Find(&Names)
+	err := DB.Raw("SELECT * FROM name_types").Find(&Names)
 	if err.Error != nil {
 		return nil, fmt.Errorf("error getting all names:  %w", err.Error)
 	}
@@ -41,39 +85,33 @@ func (*NameType) GetAllNames() ([]NameType, error) {
 }
 
 // GetNameById returns the name record with the given ID (non-deleted)
-func (*NameType) GetNameById(id int) (*NameType, *gorm.DB, error) {
+func GetNameById(id int) (*NameType, *gorm.DB, error) {
 	var getName NameType
-	data := DB.Raw("SELECT * FROM name_types WHERE id = ? AND name_types.deleted_at IS NULL", id).Find(&getName)
+	data := DB.Raw("SELECT * FROM name_types WHERE id = ?", id).Find(&getName)
 	if data.Error != nil {
 		return nil, nil, fmt.Errorf("error getting name by id:  %w", data.Error)
 	}
+	if getName.ID == 0 {
+		return nil, nil, fmt.Errorf("error getting name by id: %w", errors.New("name not found on the database"))
+	}
+
 	return &getName, data, nil
 }
 
 // GetNameByName returns the name record with the given name (non-deleted)
-func (*NameType) GetNameByName(name string) (*NameType, error) {
+func GetNameByName(name string) (*NameType, error) {
 	var getName NameType
-	data := DB.Raw("SELECT * FROM name_types WHERE name = ? AND name_types.deleted_at IS NULL", name).Find(&getName)
+	data := DB.Raw("SELECT * FROM name_types WHERE name = ?", name).Find(&getName)
 	if data.Error != nil {
 		return nil, fmt.Errorf("error getting name by name:  %w", data.Error)
 	}
 	return &getName, nil
 }
 
-// GetNameByMetaphone returns all non-deleted name records with the given metaphone
-func (*NameType) GetNameByMetaphone(mtf string) ([]NameType, error) {
-	var getNames []NameType
-	data := DB.Raw("SELECT * FROM name_types WHERE metaphone = ? AND name_types.deleted_at IS NULL", mtf).Find(&getNames)
-	if data.Error != nil {
-		return nil, fmt.Errorf("error getting name by metaphone:  %w", data.Error)
-	}
-	return getNames, nil
-}
-
 // GetSimilarMatch searches for a similar match for a given name in a slice of NameType.
-func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType, error) {
+func GetSimilarMatch(name string, allNames []NameType) (*NameType, error) {
 	// Search for an exact match in the database.
-	perfectMatch, err := n.GetNameByName(strings.ToUpper(name))
+	perfectMatch, err := GetNameByName(strings.ToUpper(name))
 	if err != nil {
 		return nil, fmt.Errorf("error getting name by similar match: %w", err)
 	}
@@ -85,17 +123,17 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 	nameMetaphone := metaphone.Pack(name)
 
 	// Search for the exact metaphone match.
-	exactMetaphoneMatches := n.SearchCacheMetaphone(nameMetaphone, allNames)
+	exactMetaphoneMatches := SearchCacheMetaphone(nameMetaphone, allNames)
 	if len(exactMetaphoneMatches) == 0 {
 		// Search for all similar metaphone codes if no exact match is found.
-		exactMetaphoneMatches = n.SearchSimilarMetaphone(nameMetaphone, allNames)
+		exactMetaphoneMatches = SearchSimilarMetaphone(nameMetaphone, allNames)
 		if len(exactMetaphoneMatches) == 0 {
 			return nil, fmt.Errorf("error no matches found for name: %w", err)
 		}
 	}
 
 	// Get all similar names by metaphone list.
-	similarNames := n.SearchSimilarNames(name, exactMetaphoneMatches, SimilarityThreshold)
+	similarNames := SearchSimilarNames(name, exactMetaphoneMatches, SimilarityThreshold)
 	if len(similarNames) == 0 {
 		return nil, fmt.Errorf("error no similar names found for %q", name)
 	}
@@ -103,7 +141,7 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 	// Search for all similar names of all similar names listed so far if similarNames is too small.
 	if len(similarNames) < 5 {
 		for _, sn := range similarNames {
-			similar := n.SearchSimilarNames(sn.Name, exactMetaphoneMatches, SimilarityThreshold)
+			similar := SearchSimilarNames(sn.Name, exactMetaphoneMatches, SimilarityThreshold)
 			similarNames = append(similarNames, similar...)
 		}
 	}
@@ -115,7 +153,7 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 	}
 
 	// Return the canonical name combined with similar names ordered by levenshtein.
-	canonicalEntity, err := n.SearchCanonicalName(name, SimilarityThreshold, allNames, exactMetaphoneMatches, similarNamesOrderedByLevenshtein)
+	canonicalEntity, err := SearchCanonicalName(name, SimilarityThreshold, allNames, exactMetaphoneMatches, similarNamesOrderedByLevenshtein)
 	if err != nil {
 		return nil, fmt.Errorf("error failed to find canonical name: %w", err)
 	}
@@ -123,18 +161,8 @@ func (n *NameType) GetSimilarMatch(name string, allNames []NameType) (*NameType,
 	return canonicalEntity, nil
 }
 
-// DeleteNameById deletes a name from the database by its ID.
-func (*NameType) DeleteNameById(id int) (NameType, error) {
-	var getName NameType
-	err := DB.Where("id = ?", id).Delete(&getName)
-	if err.Error != nil {
-		return NameType{}, fmt.Errorf("error deliting name: %w", err.Error)
-	}
-	return getName, nil
-}
-
 // SearchSimilarMetaphone returns a slice of NameType elements that have a metaphone similar to the given paradigmMetaphone
-func (*NameType) SearchSimilarMetaphone(paradigmMetaphone string, allNames []NameType) []NameType {
+func SearchSimilarMetaphone(paradigmMetaphone string, allNames []NameType) []NameType {
 	// create an empty slice to store the return values
 	var returnNames []NameType
 	// iterate over all the names in allNames
@@ -150,7 +178,7 @@ func (*NameType) SearchSimilarMetaphone(paradigmMetaphone string, allNames []Nam
 }
 
 // SearchSimilarNames returns a slice of NameLevenshtein elements that have a similarity score higher than the given threshold to the given paradigmName
-func (*NameType) SearchSimilarNames(paradigmName string, allNames []NameType, threshold float32) []NameSimilarity {
+func SearchSimilarNames(paradigmName string, allNames []NameType, threshold float32) []NameSimilarity {
 	// create an empty slice to store the return values
 	var similarNames []NameSimilarity
 
@@ -203,7 +231,7 @@ func (*NameType) SearchSimilarNames(paradigmName string, allNames []NameType, th
 }
 
 // SearchCanonicalName searches for a canonical name in a list of names using a given threshold for similarity matching.
-func (*NameType) SearchCanonicalName(paradigmName string, threshold float32, allNames []NameType, matchingMetaphoneNames []NameType, nameVariations []string) (*NameType, error) {
+func SearchCanonicalName(paradigmName string, threshold float32, allNames []NameType, matchingMetaphoneNames []NameType, nameVariations []string) (*NameType, error) {
 	// Convert the input name to uppercase.
 	n := strings.ToUpper(paradigmName)
 
@@ -282,24 +310,9 @@ func (*NameType) SearchCanonicalName(paradigmName string, threshold float32, all
 	return &NameType{}, errors.New("couldn't find canonical name")
 }
 
-// SearchCacheName searches for a name in the cache and returns a pointer to its corresponding NameType object
-// along with a boolean indicating whether the name was found or not
-func (*NameType) SearchCacheName(name string, cache []NameType) (*NameType, bool) {
-	// iterate over the cache and look for a name that matches the given name
-	for _, c := range cache {
-		if c.Name == name {
-			// if the name is found, return a pointer to the NameType object and true
-			return &c, true
-		}
-	}
-
-	// if the name is not found, return a pointer to an empty NameType object and false
-	return &NameType{}, false
-}
-
 // SearchCacheMetaphone searches for all NameType objects in the cache that have a matching metaphone value
 // and returns them as a slice
-func (*NameType) SearchCacheMetaphone(metaphone string, cache []NameType) []NameType {
+func SearchCacheMetaphone(metaphone string, cache []NameType) []NameType {
 	// create an empty slice to hold the NameType objects with matching metaphone values
 	var nameTypes []NameType
 	// iterate over the cache and look for NameType objects with metaphone values that match the given metaphone value
