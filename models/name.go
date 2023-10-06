@@ -16,7 +16,7 @@ type NameType struct {
 	gorm.Model
 	Name           string `gorm:"unique" json:"Name,omitempty"`
 	Classification string `json:"Classification,omitempty"`
-	Metaphone      string `json:"Metaphone,omitempty"`
+	Metaphone      string `gorm:"index" json:"Metaphone,omitempty"`
 	NameVariations string `json:"NameVariations,omitempty"`
 }
 
